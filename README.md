@@ -17,6 +17,7 @@ Las estructuras algebraicas estan programadas desde cero, salvo librerias para g
 - [ ] Polinomio minimo de alpha+beta, alpha*beta, ... cuando Q(alpha), Q(beta) son extensiones de Q
 - [x] Algoritmo de factorizacion de un polinomio en cuerpo finito parte 1, 2 y 3.
 - [ ] Algoritmo de facorizacion en Z[x]
+
 ## Testeados:
 - [x] Algoritmo de euclides para R un D.E. cualquiera
 - [x] Algoritmo de euclides extendido
