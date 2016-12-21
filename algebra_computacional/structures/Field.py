@@ -1,4 +1,4 @@
-from algebra_computacional.structures.EuclideanDomain import Euclid
+from structures.EuclideanDomain import Euclid
 
 class Field(Euclid):
     def __init__(self):

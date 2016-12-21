@@ -1,4 +1,4 @@
-import algebra_computacional.factories.IntegerRing
+import factories.IntegerRing
 import ply.lex as lex
 import ply.yacc as yacc
 class IntegerParser(object):

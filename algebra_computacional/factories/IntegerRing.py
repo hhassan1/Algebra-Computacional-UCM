@@ -1,5 +1,5 @@
-from algebra_computacional.rings.Integer import Integer
-from algebra_computacional.parsers.integer.integer import parse as int_parse
+from rings.Integer import Integer
+from parsers.integer.integer import parse as int_parse
 class IntegerRing(object):
     """docstring for IntegerRing"""
     @staticmethod
@@ -15,5 +15,8 @@ class IntegerRing(object):
     @staticmethod
     def one():
         return Integer(1L)
-
-    
+    @staticmethod
+    def scalar_translator(term):
+        r'\d+'
+        term.value = Integer(long(term.value))
+        return term

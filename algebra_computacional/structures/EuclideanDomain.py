@@ -1,5 +1,5 @@
 from IntegralDomain import Integral
-from algebra_computacional.utilities.haskell import scanl, scanr, zipWith
+from utilities.haskell import scanl, scanr, zipWith
 from functools import reduce
 
 class Euclid(Integral):
@@ -12,21 +12,17 @@ class Euclid(Integral):
         S = [self.one(), self.zero()]
         T = [self.zero(), self.one()]
         i = 1
-        while not R[i] == self.zero():
+        while not R[i].is_zero():
+            print R[i]
             Q.append(R[i-1] / R[i])
             R.append(R[i-1] - Q[i+1]*R[i])
             S.append(S[i-1] - Q[i+1]*S[i])
             T.append(T[i-1] - Q[i+1]*T[i])
+            print i
             i = i + 1
         g = R[i-1]
         u, v = S[i-1], T[i-1]
-        if i % 2 == 0:
-            a_1 = -T[i]
-            b_1 = S[i]
-        else:
-            a_1 = T[i]
-            b_1 = -S[i]
-        return g, u, v, a_1, b_1
+        return g, u, v
     @classmethod
     def chinese_remainder(cls, equations):
         a_list, p_list = zip(*equations)

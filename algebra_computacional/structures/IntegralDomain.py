@@ -2,12 +2,12 @@ class Integral(object):
     """docstring for Integral"""
     def __init__(self):
         super(Integral, self).__init__()
-    @classmethod
-    def zero(cls):
+    def builder(self):
         raise NotImplementedError
-    @classmethod
-    def one(cls):
-        raise NotImplementedError
+    def zero(self):
+        return self.builder().zero()
+    def one(self):
+        return self.builder().one()
     def is_zero(self):
         raise NotImplementedError
     def is_one(self):

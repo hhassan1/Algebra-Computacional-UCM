@@ -1,11 +1,12 @@
 import ply.lex as lex
 import ply.yacc as yacc
+from collections import OrderedDict
 class PolyParser(object):
     def __init__(self):
-        self.parsers = dict()
-    def get_parser(self, ring):
-        if ring in self.parsers:
-            return self.parsers[ring]
+        self.parsers = OrderedDict()
+    def get_parser(self, ring_builder):
+        if ring_builder in self.parsers:
+            return self.parsers[ring_builder]
         else:
             class InnerParser(object):
                 """docstring for InnerParser"""
@@ -74,7 +75,7 @@ class PolyParser(object):
                     #self.t_LPAREN  = r'\('
                     #self.t_RPAREN  = r'\)'
                     self.t_ignore = " \t"
-                    self.t_SCALAR = ring.scalar_translator
+                    self.t_SCALAR = ring_builder.scalar_translator
                     self.result = dict()
                     self.lexer = lex.lex(object=self)
 
@@ -157,7 +158,7 @@ class PolyParser(object):
                         t[0] = t[1]
                     def p_ringscalar_one(t):
                         'ringscalar : '
-                        t[0] = ring.one()
+                        t[0] = ring_builder.one()
                     def p_monomial_powered(t):
                         'monomial : ringscalar VAR POWER exparith'
                         t[0] = t[4]
@@ -194,10 +195,13 @@ class PolyParser(object):
                 def __call__(self, expression):
                     self.result.clear()
                     self.parser.parse(expression)
-                    aux = {k: v for k, v in self.result.iteritems() if v != ring.zero()}
+                    aux = {k: v for k, v in self.result.iteritems() if not v.is_zero() or k == 0}
                     return  aux
 
             aux = InnerParser()
-            self.parsers[ring] = aux
+            self.parsers[ring_builder] = aux
             return aux
-parse = PolyParser().get_parser
+parsers = PolyParser()
+def parse(ring, exp):
+    aux = parsers.get_parser(ring)
+    return aux(exp)

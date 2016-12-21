@@ -1,16 +1,15 @@
-from algebra_computacional.structures.EuclideanDomain import Euclid
+from structures.EuclideanDomain import Euclid
+import factories.IntegerRing
 
 class Integer(Euclid):
     """docstring for Int"""
     def __init__(self, value):
         super(Integer, self).__init__()
         self.number = long(value)
-    @staticmethod
-    def zero():
-        return Integer(0L)
-    @staticmethod
-    def one():
-        return Integer(1L)
+    def is_one(self):
+        return self.number == 1
+    def is_zero(self):
+        return self.number == 0
     def __eq__(self, op2):
         return self.number == op2.number
     def __add__(self, op2):
@@ -24,12 +23,9 @@ class Integer(Euclid):
     def __str__(self):
         return str(self.number)
     def __repr__(self):
-        return repr(self.number)
+        return repr(self.number)[:-1]
     def __div__(self, op2):
         return Integer(self.number // op2.number)
-
     @staticmethod
-    def scalar_translator(term):
-        r'\d+'
-        term.value = Integer(long(term.value))
-        return term
+    def builder():
+        return factories.IntegerRing.IntegerRing
