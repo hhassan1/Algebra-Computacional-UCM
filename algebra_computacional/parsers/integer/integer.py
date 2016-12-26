@@ -1,4 +1,3 @@
-import factories.IntegerRing
 import ply.lex as lex
 import ply.yacc as yacc
 class IntegerParser(object):
@@ -36,7 +35,7 @@ class IntegerParser(object):
             print("Syntax error at '%s'" % t.value)
         def p_scalar(t):
             'scalar : num'
-            self.result = IntegerRing(t[1])
+            self.result = t[1]
         def p_num_binop(t):
             '''num : num PLUS   num
                    | num MINUS  num
@@ -61,4 +60,5 @@ class IntegerParser(object):
     def parse(self, expression):
         self.parser.parse(expression, lexer=self.lexer)
         return self.result
-parse = IntegerParser().parse
+__aux__ = IntegerParser()
+int_parse = __aux__.parse

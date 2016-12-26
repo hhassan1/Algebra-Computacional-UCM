@@ -1,207 +1,150 @@
+__all__ = ['poly_parse']
 import ply.lex as lex
 import ply.yacc as yacc
-from collections import OrderedDict
-class PolyParser(object):
+
+class GenericPolynomialLexer(object):
+    """docstring for InnerParser"""
+    
+    def t_newline(self,t):
+        r'\n+'
+        t.lexer.lineno += t.value.count("\n")
+    def t_error(self,t):
+        print "Illegal character '%s'" % t.value[0]
+        t.lexer.skip(1)
     def __init__(self):
-        self.parsers = OrderedDict()
-    def get_parser(self, ring_builder):
-        if ring_builder in self.parsers:
-            return self.parsers[ring_builder]
-        else:
-            class InnerParser(object):
-                """docstring for InnerParser"""
-                tokens = (
-                        'VAR','NUMBER',
-                        'PLUS','MINUS','TIMES','DIVIDE','POWER',
-                        'LPAREN','RPAREN', 'SCALAR',
-                        )
-                states = (('num','inclusive'),)
-                def t_num_NUMBER(self,t):
-                    r'\d+'
-                    t.value = long(t.value)
-                    if self.parenthesis is 0:
-                        t.lexer.begin('INITIAL')
-                    return t
-                def t_LPAREN(self,t):
-                    r'\('
-                    self.parenthesis = self.parenthesis+1
-                    return t
-                def t_RPAREN(self,t):
-                    r'\)'
-                    self.parenthesis = self.parenthesis-1
-                    return t
-                def t_VAR(self,t):
-                    r'x'
-                    self.variable = True
-                    return t
-                def t_PLUS(self,t):
-                    r'\+'
-                    if self.parenthesis is 0:
-                        self.variable = False
-                        t.lexer.begin('INITIAL')
-                    return t
-                def t_MINUS(self,t):
-                    r'-'
-                    if self.parenthesis is 0:
-                        self.variable = False
-                        t.lexer.begin('INITIAL')
-                    return t
-                def t_TIMES(self,t):
-                    r'\*'
-                    if self.parenthesis is 0:
-                        self.variable = False
-                        t.lexer.begin('INITIAL')
-                    return t
-                def t_POWER(self,t):
-                    r'\^'
-                    if self.parenthesis is 0 and self.variable:
-                        self.variable = False
-                        t.lexer.begin('num')
-                    return t
-                def __init__(self):
-                    super(InnerParser, self).__init__()
-                    self.parenthesis = 0
-                    self.variable = False
-                    tokens = (
-                            'VAR','NUMBER',
-                            'PLUS','MINUS','TIMES','DIVIDE','POWER',
-                            'LPAREN','RPAREN', 'SCALAR',
-                            )
-                    #self.t_VAR     = r'x'
-                    #self.t_PLUS    = r'\+'
-                    #self.t_MINUS   = r'-'
-                    #self.t_TIMES   = r'\*'
-                    #self.t_POWER   = r'\^'
-                    #self.t_LPAREN  = r'\('
-                    #self.t_RPAREN  = r'\)'
-                    self.t_ignore = " \t"
-                    self.t_SCALAR = ring_builder.scalar_translator
-                    self.result = dict()
-                    self.lexer = lex.lex(object=self)
+        super(GenericPolynomialLexer, self).__init__()
+        self.tokens = (
+            'VAR',
+            'NUMBER',
+            'PLUS',
+            'MINUS',
+            'TIMES',
+            'DIVIDE',
+            'POWER',
+            'LPAREN',
+            'RPAREN',
+            'SCALAR',
+            )
+        self.t_NUMBER = r'\d+'
+        #self.t_VAR    = None
+        self.t_PLUS   = r'\+'
+        self.t_MINUS  = r'-'
+        self.t_TIMES  = r'\*'
+        self.t_POWER  = r'\^'
+        self.t_LPAREN = r'\('
+        self.t_RPAREN = r'\)'
+        self.t_ignore = " \t"
+        #self.t_SCALAR = None
+        self.lexer = lex.lex(object=self)
+    def input(self, expression):
+        self.lexer.input(expression)
+    def token(self):
+        return self.lexer.token()
 
-                    # Parsing rules
+class PolynomialParser(object):
 
-                    precedence = (
-                        ('left','PLUS','MINUS'),
-                        ('left','TIMES','DIVIDE'),
-                        ('right','POWER'),
-                        ('right','UMINUS'),
-                        )
+    def __init__(self, poly_factory, lexer):
+        super(PolynomialParser, self).__init__()
+        self.poly_factory = poly_factory
+        self.parser = yacc.yacc(start='statement', module=self, debug=False)
+        self.lexer = lexer
+        self.result = None
+    def __call__(self, expression):
+        self.result = None
+        self.parser.parse(expression, lexer=self.lexer)
 
-                    # dictionary of names
-                    monomials = dict()
+        return self.result
+    tokens = (
+            'VAR',
+            'NUMBER',
+            'PLUS',
+            'MINUS',
+            'TIMES',
+            'DIVIDE',
+            'POWER',
+            'LPAREN',
+            'RPAREN',
+            'SCALAR',
+            )
+    precedence = (
+                    ('left','PLUS','MINUS'),
+                    ('left','TIMES','DIVIDE'),
+                    ('right','POWER'),
+                    ('right','UMINUS'),
+                 )
+    def p_statement_empty(self, t):
+        'statement : '
+        self.result = self.poly_factory.zero()
+    def p_statement_expr(self, t):
+        'statement : polynomial'
+        self.result = t[1]
 
-                    def p_polynomial_expr(t):
-                        'polynomial : statement'
+    def p_monomial_scalar(self, t):
+        'monomial : scalar'
+        t[0] = self.poly_factory.monomial(0, t[1])
+    def p_monomial_single(self, t):
+        'monomial : scalar VAR'
+        t[0] = self.poly_factory.monomial(1, t[1])
+    def p_monomial_exp(self, t):
+        'monomial : scalar VAR POWER number'
+        t[0] = self.poly_factory.monomial(t[4], t[1])
+    def p_monomial_single_one(self, t):
+        'monomial : VAR'
+        t[0] = self.poly_factory.monomial(1)
+    def p_monomial_exp_one(self, t):
+        'monomial : VAR POWER number'
+        t[0] = self.poly_factory.monomial(t[3])
 
-                    def p_statement_expr(t):
-                        '''statement : statement PLUS monomial  
-                                     | statement minmonomial 
-                                     | monomial 
-                                     | minmonomial'''
+    def p_polynomial_single(self, t):
+        'polynomial : monomial'
+        t[0] = t[1]
+    def p_polynomial_arith(self, t):
+        '''polynomial : polynomial PLUS   polynomial
+                      | polynomial MINUS  polynomial
+                      | polynomial TIMES  polynomial
+                      | polynomial DIVIDE polynomial '''   
+        if t[2] == '+': t[0] = t[1] + t[3]
+        elif t[2] == '-': t[0] = t[1] - t[3]
+        elif t[2] == '*': t[0] = t[1] * t[3]
+        elif t[2] == '/': t[0] = t[1] / t[3]
+    def p_polynomial_silentproduct(self, t):
+        'polynomial : LPAREN polynomial RPAREN monomial'
+        t[0] = t[2] * t[4]
+    def p_polynomial_power(self, t):
+        'polynomial : LPAREN polynomial RPAREN POWER number'
+        t[0] = t[2] ^ t[5]
+    def p_polynomial_parenthesis(self, t):
+        'polynomial : LPAREN polynomial RPAREN'
+        t[0] = t[2]
+    def p_polynomial_uminus(self, t):
+        'polynomial : MINUS polynomial %prec UMINUS'
+        t[0] = -t[2]
 
-                    def p_ringarith_binop(t):
-                        '''ringarith : ringarith PLUS   ringarith
-                                 | ringarith MINUS  ringarith
-                                 | ringarith TIMES  ringarith
-                                 | ringarith DIVIDE ringarith
-                                 | ringarith POWER  arith'''
-                        if t[2] == '+'  : t[0] = t[1] + t[3]
-                        elif t[2] == '-': t[0] = t[1] - t[3]
-                        elif t[2] == '*': t[0] = t[1] * t[3]
-                        elif t[2] == '/': t[0] = t[1] / t[3]
-                        elif t[2] == '^': t[0] = t[1] ** t[3]
+    def p_number_single(self, t):
+        'number : NUMBER'
+        t[0] = long(t[1])
 
-                    def p_ringarith_number(t):
-                        'ringarith : SCALAR'
-                    def p_arith_binop(t):
-                        '''arith : arith PLUS   arith
-                                 | arith MINUS  arith
-                                 | arith TIMES  arith
-                                 | arith DIVIDE arith
-                                 | arith POWER  arith'''
-                        if t[2] == '+'  : t[0] = t[1] + t[3]
-                        elif t[2] == '-': t[0] = t[1] - t[3]
-                        elif t[2] == '*': t[0] = t[1] * t[3]
-                        elif t[2] == '/': t[0] = t[1] / t[3]
-                        elif t[2] == '^': t[0] = t[1] ** t[3]
+    def p_scalar_single(self, t):
+        '''scalar : SCALAR
+                  | NUMBER '''
+        t[0] = self.poly_factory.inner_factory(t[1])
+    def p_scalar_power(self, t):
+        'scalar : scalar POWER number'
+        t[0] = t[1] ^ t[3]
 
-                    def p_arith_number(t):
-                        'arith : NUMBER'
-                        t[0] = t[1]
-                    def p_arith_uminus(t):
-                        'arith : MINUS arith %prec UMINUS'
-                        t[0] = -t[2]
-                    def p_minmonomial_uminus(t):
-                        'minmonomial : MINUS monomial %prec UMINUS'
-                        aux = -self.result[t[2]]
-                        del self.result[t[2]]
-                        self.result[t[2]] = aux
-                        t[0] = t[2]
-                    def p_arith_group(t):
-                        'arith : LPAREN arith RPAREN'
-                        t[0] = t[2]
-                    def p_exparith_group(t):
-                        'exparith : LPAREN arith RPAREN'
-                        t[0] = t[2]
-                    def p_exparith_number(t):
-                        'exparith : NUMBER'
-                        t[0] = t[1]
-                    def p_exparith_one(t):
-                        'exparith : '
-                        t[0] = 1
-                    def p_ringscalar_group(t):
-                        'ringscalar : LPAREN ringarith RPAREN'
-                        t[0] = t[2]
-                    def p_ringscalar_number(t):
-                        'ringscalar : SCALAR'
-                        t[0] = t[1]
-                    def p_ringscalar_one(t):
-                        'ringscalar : '
-                        t[0] = ring_builder.one()
-                    def p_monomial_powered(t):
-                        'monomial : ringscalar VAR POWER exparith'
-                        t[0] = t[4]
-                        if t[4] in self.result:
-                            self.result[t[4]] += t[1]
-                        else:
-                            self.result[t[4]] = t[1]
-                    def p_monomial_exp1(t):
-                        'monomial : ringscalar VAR'
-                        t[0] = 1
-                        if 1 in self.result:
-                            self.result[1] += t[1]
-                        else:
-                            self.result[1] = t[1]
-                    def p_monomial_scalar(t):
-                        'monomial : ringscalar'
-                        t[0] = 0
-                        if 0 in self.result:
-                            self.result[0] += t[1]
-                        else:
-                            self.result[0] = t[1]
+    def p_error(self, t):
+        print("Syntax error at '%s'" % t.value)
 
-                    def p_error(t):
-                        print("Syntax error at '%s'" % t.value)
-                    self.parser = yacc.yacc(start='polynomial')
+__parsers = dict()
 
-                def t_newline(self,t):
-                    r'\n+'
-                    t.lexer.lineno += t.value.count("\n")
-                    
-                def t_error(self,t):
-                    print "Illegal character '%s'" % t.value[0]
-                    t.lexer.skip(1)
-                def __call__(self, expression):
-                    self.result.clear()
-                    self.parser.parse(expression)
-                    aux = {k: v for k, v in self.result.iteritems() if not v.is_zero() or k == 0}
-                    return  aux
-
-            aux = InnerParser()
-            self.parsers[ring_builder] = aux
-            return aux
-parsers = PolyParser()
-def parse(ring, exp):
-    aux = parsers.get_parser(ring)
-    return aux(exp)
+def ParserGenerator(factory, variable):
+    if factory not in __parsers:
+        class SpecificPolynomialLexer(GenericPolynomialLexer):
+            def __init__(self):
+                self.t_SCALAR = factory.inner_factory.scalar_regex
+                self.t_VAR = variable
+                super(SpecificPolynomialLexer, self).__init__()
+        __parsers[factory] = PolynomialParser(factory, SpecificPolynomialLexer())
+    return __parsers[factory]
+def poly_parse(factory, exp, variable):
+    return ParserGenerator(factory, variable)(exp)
