@@ -1,5 +1,6 @@
 __all__ = ['Integer', 'PolynomialOverIntegral', 'PolynomialOverField',
-           'PolynomialOverGalois', 'QuotientElement', 'ModularInteger']
+           'PolynomialOverGalois', 'QuotientElement', 'ModularInteger',
+           'GaussianInteger']
 
 from algebra_computacional.structures import (EuclideanDomain,
                                               Field,
@@ -38,8 +39,6 @@ class Integer(EuclideanDomain):
     def __repr__(self):
         return str(self.number)
 
-
-
 class QuotientElement(Field):
     """docstring for Int"""
     def __init__(self, value, factory):
@@ -70,11 +69,33 @@ class QuotientElement(Field):
     def __divmod__(self, op2):
         return self.factory(divmod(self.value,op2.value))
     def __div__(self, op2):
-        return self * op2.inverse()
+        return self.factory(self.value / op2.value)
     def __str__(self):
         return str(self.value)
     def __repr__(self):
         return repr(self.value)
+
+class GaussianInteger(QuotientElement):
+    """docstring for Int"""
+    def __init__(self, value, factory):
+        super(GaussianInteger, self).__init__(value, factory)
+    def __div__(self, op2):
+        if op2.is_zero():
+            raise ZeroDivisionError
+        conj = op2.conjugate()
+        a = self * conj
+        b = op2 * conj
+        nat_a = a.value.coefficients.get(0,self.factory.inner_factory.inner_factory.zero()).number
+        img_a = a.value.coefficients.get(1,self.factory.inner_factory.inner_factory.zero()).number
+        nat_b = b.value.coefficients[0L].number
+        nat_res = int(round(nat_a*(1.0/nat_b)))
+        img_res = int(round(img_a*(1.0/nat_b)))
+        return self.factory( '(' + str(nat_res) + ') + (' + str(img_res) + ')i' )
+    def conjugate(self):
+        copy = self.value + self.factory.inner_factory.zero()
+        if 1L in self.value.coefficients:
+            copy.coefficients[1L] = -self.value.coefficients[1L]
+        return self.factory(copy)
 
 class ModularInteger(QuotientElement, GaloisField):
     """docstring for Int"""
@@ -130,6 +151,23 @@ class PolynomialOverIntegral(Integral):
         for k in xrange(self.degree(),-1,-1):
             scalar = self.coefficients.get(k,self.factory.inner_factory.zero())
             result = result*subs + scalar
+    def __divmod__(self, rop):
+        if rop.is_zero():
+            raise ZeroDivisionError
+        q = self.factory.zero()
+        if (self.leading_coefficient() / rop.leading_coefficient())*rop.leading_coefficient() != self.leading_coefficient():
+            r = self.factory.monomial(0, self.leading_coefficient()) * self
+        else:
+            r = self
+        while not r.is_zero() and r.degree() >= rop.degree():
+            t = self.factory.monomial(r.degree() - rop.degree(), r.leading_coefficient() / rop.leading_coefficient())
+            q = q+t
+            r = r - (t*rop)
+        return q, r
+    def __div__(self, rop):
+        return divmod(self, rop)[0]
+    def __mod__(self, rop):
+        return divmod(self, rop)[1]
 
 
 

@@ -4,6 +4,7 @@ from algebra_computacional.rings import (Integer,
                                          PolynomialOverGalois,
                                          QuotientElement,
                                          ModularInteger,
+                                         GaussianInteger,
                                         )
 from algebra_computacional.structures import (GaloisField,
                                               Field,
@@ -81,66 +82,6 @@ class PolynomialFactory(object):
             scalar = self.inner_factory.one()
         return self.product({degree:scalar}, self)
 
-# class GaloisFactory(object):
-#     def __init__(self, p, expression=None):
-#         super(GaloisFactory, self).__init__()
-#         self.p = p
-#         if expression is not None:
-#             self.scalar_factory = GaloisFactory(p)
-#             self.poly_factory = PolynomialFactory(self.scalar_factory.zero(),expression[1])
-#             self.polynomial = self.poly_factory(expression[0])
-#             self.k = self.polynomial.degree()
-#         else:
-#             self.scalar_factory = ModularIntegerFactory(p)
-#             self.poly_factory = PolynomialFactory(self.scalar_factory.zero())
-#             self.polynomial = self.poly_factory(str(self.p))
-#             self.k = 1
-#         self.q = self.p ** self.k
-#     def __call__(self, expression):
-#         aux = self.poly_factory(expression)
-#         if self.k > 1:
-#             aux = aux % self.polynomial
-#         aux.factory = self
-#         return aux
-#     def zero(self):
-#         aux = self.poly_factory.zero()
-#         aux.factory = self
-#         return aux
-#     def one(self):
-#         aux = self.poly_factory.one()
-#         aux.factory = self
-#         return aux
-#     def element_iterator(self):
-#         parent = self
-#         class Iterator(object):
-#             def __init__(self):
-#                 self.p = parent.p
-#                 self.total_counter = 0
-#             def has_next(self):
-#                 return self.total_counter < self.p
-#             def next(self):
-#                 ret = parent({0L:parent.scalar_factory(self.total_counter)})
-#                 self.total_counter += 1
-#                 return ret
-#             def restart(self):
-#                 self.total_counter = 0
-#         return Iterator()
-#     def monomial(self, scalar, degree):
-#         aux = self.poly_factory.monomial(scalar, degree)
-#         if self.k > 1:
-#             aux = aux % self.polynomial
-#         aux.factory = self
-#         return aux
-#     def consolidate(self, polynomial):
-#         coefs = polynomial.coefficients
-#         while max(coefs, key=int) >= self.p:
-#             new_coefs = dict()
-#             for k,v in coefs.iteritems():
-#                 if k >= self.p:
-#                     new_coefs[(k/self.p) + (k%self.p)] = new_coefs.get((k/self.p) + (k%self.p), self.scalar_factory.zero()) + v
-#             coefs = new_coefs
-#         polynomial.coefs = coefs
-
 class QuotientFactory(object):
     def __init__(self, factory, expression):
         super(QuotientFactory, self).__init__()
@@ -189,3 +130,8 @@ class GaloisPolynomialFactory(PolynomialFactory):
         self.p = p
         self.q = p ** self.k
         self.product = PolynomialOverGalois
+
+class GaussianIntegerFactory(QuotientFactory):
+    def __init__(self):
+        super(GaussianIntegerFactory, self).__init__(PolynomialFactory(IntegerFactory(),'i'),'i^2 + 1')
+        self.product = GaussianInteger
