@@ -7,8 +7,10 @@ from algebra_computacional.structures import (EuclideanDomain,
                                               GaloisField,
                                               Integral
                                              )
-from algebra_computacional.utilities.haskell import zipWithAll, concat, eea
-import itertools #sustituir por utilities haskell
+from algebra_computacional.utilities.haskell import zipWithAll, concat, eea, foldl
+import algebra_computacional.factories
+import math
+import fractions
 
 class Integer(EuclideanDomain):
     """docstring for Int"""
@@ -16,6 +18,53 @@ class Integer(EuclideanDomain):
         super(Integer, self).__init__()
         self.number = value
         self.factory = factory
+    def is_perfect_power(self):
+        b = 2
+        c = math.log(self.number,2)
+        while b <= c:
+            a = self.number**(1./b)
+            b+=1
+            if math.floor(a) == a:
+                return True
+        return False
+    def phi(self):
+        amount = 0
+
+        for k in range(1, self.number + 1):
+            if fractions.gcd(self.number, k) == 1:
+                amount += 1
+
+        return amount
+    def is_prime(self):
+        if self.is_perfect_power():
+            return False
+        maxk=math.floor(math.log(self.number)**2)
+        nextR=True
+        r=2
+        while nextR:
+            nextR=False
+            k = 1
+            while (not nextR) and k <= maxk:
+                aux = (self.number**k % r)
+                nextR= aux == 1 or aux == 0
+                k+=1
+            r+=1
+        r-=1
+        for a in xrange(2,min(r,self.number-1)+1):
+            if self.number % a == 0:
+                return False
+        if self.number <= r:
+            return True
+        GF_n = algebra_computacional.factories.GaloisPolynomialFactory(self.number)
+        X = GF_n.monomial(1)
+        X_n = GF_n.monomial(self.number)
+        mod = GF_n.monomial(r) - GF_n.one()
+        for a in xrange(1,  int(self.phi()*math.log(self.number,2))+1):
+            A = GF_n.monomial(0,a)
+            M = (((X + A)^self.number) - X_n - A) % mod
+            if not M.is_zero():
+                return False
+        return True
     def is_one(self):
         return self.number == 1
     def is_zero(self):
@@ -69,7 +118,7 @@ class QuotientElement(Field):
     def __divmod__(self, op2):
         return self.factory(divmod(self.value,op2.value))
     def __div__(self, op2):
-        return self.factory(self.value / op2.value)
+        return self * op2.inverse()
     def __str__(self):
         return str(self.value)
     def __repr__(self):
@@ -138,6 +187,22 @@ class PolynomialOverIntegral(Integral):
         return self.coefficients[self.degree()]
     def builder(self):
         return self.factory
+    def pp(self):
+        if(self.is_zero()):
+            return self
+        gcd = foldl(self.factory.inner_factory.zero().gcd.__func__, self.coefficients[0], self.coefficients.itervalues())
+        return self.factory({k: v/gcd for k, v in self.coefficients.iteritems()})
+    def pea(self, b):
+        R = [self, b]
+        i = 1
+        while not R[i].is_zero():
+            A = ((self.factory(str(R[i].leading_coefficient()))^(R[i-1].degree() - R[i].degree() + 1))*R[i-1] % R[i])
+            R.append(A.pp())
+            i = i + 1
+        g = R[i-1]
+        if (-g.leading_coefficient()).is_one():
+            return -g
+        return g
     def derivative(self):
         return self.factory({ k-1: self.factory.inner_factory(str(k)) * v for k,v in self.coefficients.iteritems() if k != 0})
     def __str__(self):
@@ -209,15 +274,13 @@ class PolynomialOverGalois(PolynomialOverField, Field):
             q = q+t
             r = r - (t*rop)
         return q, r
-    def gcd(self, b):
-        return self.eea(b)[0]
 
     def pth_root(self):
         return self.factory({ k/self.factory.p: v for k,v in self.coefficients.iteritems()})
     
     def frob_basis(self):
         base_size = self.degree()
-        image = [[None]]*self.degree()
+        image = [[] for _ in range(self.degree())]
         for canonic in [self.factory.monomial(i) for i in range(base_size)]:
             image.append((canonic^(self.factory.q) - canonic)%self)
         result = gaussian_elimination(image)
@@ -283,3 +346,5 @@ class PolynomialOverGalois(PolynomialOverField, Field):
                     return g
             i = i + 1
             elements.restart()
+        return self
+

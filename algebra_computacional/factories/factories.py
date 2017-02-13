@@ -80,7 +80,8 @@ class PolynomialFactory(object):
     def monomial(self, degree, scalar=None):
         if not scalar:
             scalar = self.inner_factory.one()
-        return self.product({degree:scalar}, self)
+            return self.product({degree:scalar}, self)
+        return self.product({degree:self.inner_factory(scalar)}, self)
 
 class QuotientFactory(object):
     def __init__(self, factory, expression):
@@ -90,7 +91,7 @@ class QuotientFactory(object):
         self.product = QuotientElement
         self.quotient_factor = factory(expression)
     def __call__(self, expression):
-        if isinstance(expression, basestring):
+        if isinstance(expression, (basestring,int,float)):
             ret = self.inner_factory(expression)
         else:
             ret =  expression

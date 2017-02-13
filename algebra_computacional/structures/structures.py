@@ -66,6 +66,8 @@ class EuclideanDomain(Integral):
         if (-g).is_one():
             return -g, -u, -v
         return g, u, v
+    def gcd(self, b):
+        return self.eea(b)[0]
     @classmethod
     def chinese_remainder(cls, equations):
         a_list, p_list = zip(*equations)
