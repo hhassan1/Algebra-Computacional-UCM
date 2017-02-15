@@ -5,12 +5,15 @@ from algebra_computacional.rings import (Integer,
                                          QuotientElement,
                                          ModularInteger,
                                          GaussianInteger,
+                                         
                                         )
+import algebra_computacional.rings
 from algebra_computacional.structures import (GaloisField,
                                               Field,
                                              )
 from algebra_computacional.parsers import int_parse, poly_parse
 from collections import OrderedDict
+import random
 
 
 class IntegerFactory(object):
@@ -32,6 +35,8 @@ class IntegerFactory(object):
         r'\d+'
         term.value = Integer(long(term.value), self)
         return term
+    def random(self):
+        return random.randint(-10000000L,10000000L)
 
 
 class PolynomialFactory(object):
@@ -81,7 +86,20 @@ class PolynomialFactory(object):
         if not scalar:
             scalar = self.inner_factory.one()
             return self.product({degree:scalar}, self)
+        if isinstance(scalar,self.inner_factory.product):
+            return self.product({degree:scalar}, self)
         return self.product({degree:self.inner_factory(scalar)}, self)
+    def random(self, lim=128):
+        deg = random.randint(0,lim)
+        return self.product({k:self.inner_factory.random() for k in range(deg+1)}, self)
+
+class IntegerPolynomialFactory(PolynomialFactory):
+    def __init__(self):
+        super(IntegerPolynomialFactory, self).__init__(IntegerFactory())
+        self.product = algebra_computacional.rings.IntegerPolynomial
+
+
+
 
 class QuotientFactory(object):
     def __init__(self, factory, expression):
@@ -102,12 +120,26 @@ class QuotientFactory(object):
         return self.product(self.inner_factory.one(), self)
     def monomial(self, degree, scalar=None):
         return self.product(self.inner_factory.monomial(degree, scalar) % self.quotient_factor, self)
+    def random(self):
+        return self.product(self.inner_factory.random() % self.quotient_factor, self)
 
 class ModularIntegerFactory(QuotientFactory):
     def __init__(self, p):
         super(ModularIntegerFactory, self).__init__(IntegerFactory(), p)
         self.p = p
+        self.k = 1
+        self.q = p
         self.product = ModularInteger
+    def random(self):
+        num = random.randint(0,self.p)
+        return self(num)
+    def element_iterator(self):
+        return GaloisIterator(self)
+    def monomial(self, degree, scalar=None):
+        if scalar:
+            return self(scalar)
+        return self('1')
+
 class GaloisQuotientFactory(QuotientFactory):
     def __init__(self, p, expression):
         import re
@@ -118,6 +150,11 @@ class GaloisQuotientFactory(QuotientFactory):
         self.p = p
         self.k = self.quotient_factor.degree()
         self.q = p ** self.k
+    def random(self):
+        return self.product(self.inner_factory.random(self.k-1), self)
+    def element_iterator(self):
+        return GaloisIterator(self)
+
 class GaloisPolynomialFactory(PolynomialFactory):
     def __init__(self, p, expression=None, variable='x'):
         if expression:
@@ -131,8 +168,65 @@ class GaloisPolynomialFactory(PolynomialFactory):
         self.p = p
         self.q = p ** self.k
         self.product = PolynomialOverGalois
+    def lift(self, n):
+        if n <= 1:
+            return self
+        s = n*self.k
+        if self.k > 1:
+            f = GaloisPolynomialFactory(self.p)
+        else:
+            f = self
+        item = f.monomial(s)
+        iterators = [f.inner_factory.element_iterator() for i in range(s)]
+        while len(item.factors2) > 1:
+            i = 0
+            sum_bool = False
+            while sum_bool and i < s:
+                item.coefficient[i] = iterators[i].next()
+                item = item + f.monomial(i)
+                if not iterators[i].has_next():
+                    iterators[i].reset()
+                else:
+                    sum_bool = False
+                i += 1
+        return GaloisPolynomialFactory(self.p, str(item))
+
+
+                
 
 class GaussianIntegerFactory(QuotientFactory):
     def __init__(self):
         super(GaussianIntegerFactory, self).__init__(PolynomialFactory(IntegerFactory(),'i'),'i^2 + 1')
         self.product = GaussianInteger
+
+class GaloisIterator(object):
+    """docstring for GaloisIterator"""
+    def __init__(self, factory):
+        super(GaloisIterator, self).__init__()
+        self.p = factory.p
+        self.k = factory.k
+        self.counter = 0
+        self.limit = factory.q
+        self.item = factory.zero()
+        self.factory = factory
+        self.counters = [0 for i in range(self.k)]
+    def next(self):
+        item = self.item
+        sum_bool = True
+        i = 0
+        while sum_bool and i < self.k:
+            self.counters[i] += 1
+            self.item = self.item + self.factory.monomial(i)
+            if self.counters[i] == self.p:
+                self.counters[i] = 0
+            else:
+                sum_bool = False
+            i += 1
+        self.counter+=1
+        return item
+    def has_next(self):
+        return self.counter < self.limit
+    def reset(self):
+        self.counter = 0
+        self.counters = [0 for i in range(self.k)]
+        self.item = self.factory.zero()

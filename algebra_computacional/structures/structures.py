@@ -81,6 +81,16 @@ class EuclideanDomain(Integral):
 class Field(EuclideanDomain):
     def __init__(self):
         super(Field, self).__init__()
+    def log(self, base):
+        if self.is_one():
+            return 0L
+        i = 1L
+        ret = base
+        while(ret != self):
+            ret = ret*base
+            i+=1
+        return i
+
 
 class GaloisField(Field):
     def __init__(self):

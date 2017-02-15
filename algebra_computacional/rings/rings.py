@@ -1,6 +1,6 @@
 __all__ = ['Integer', 'PolynomialOverIntegral', 'PolynomialOverField',
            'PolynomialOverGalois', 'QuotientElement', 'ModularInteger',
-           'GaussianInteger']
+           'GaussianInteger', 'IntegerPolynomial']
 
 from algebra_computacional.structures import (EuclideanDomain,
                                               Field,
@@ -11,6 +11,8 @@ from algebra_computacional.utilities.haskell import zipWithAll, concat, eea, fol
 import algebra_computacional.factories
 import math
 import fractions
+import random
+import itertools
 
 class Integer(EuclideanDomain):
     """docstring for Int"""
@@ -148,7 +150,7 @@ class GaussianInteger(QuotientElement):
 
 class ModularInteger(QuotientElement, GaloisField):
     """docstring for Int"""
-    def __init__(self, value, factory):
+    def __init__(self, value, factory):    
         super(ModularInteger, self).__init__(value, factory)
     def inverse(self):
         g, u, v = eea(self.value.number,self.factory.quotient_factor.number)
@@ -165,9 +167,9 @@ class PolynomialOverIntegral(Integral):
         self.coefficients = coefficients
         self.factory = builder
     def __add__(self, rop):
-        return self.factory({k: self.coefficients.get(k, self.factory.inner_factory.zero()) + rop.coefficients.get(k, self.factory.inner_factory.zero()) for k in set(self.coefficients) | set(rop.coefficients)})
+        return self.factory({k: self.coefficient(k) + rop.coefficient(k) for k in set(self.coefficients) | set(rop.coefficients)})
     def __sub__(self, rop):
-        return self.factory({k: self.coefficients.get(k, self.factory.inner_factory.zero()) - rop.coefficients.get(k, self.factory.inner_factory.zero()) for k in set(self.coefficients) | set(rop.coefficients)})
+        return self.factory({k: self.coefficient(k) - rop.coefficient(k) for k in set(self.coefficients) | set(rop.coefficients)})
     def __mul__(self, rop):
         a = self.factory.zero()
         for k in self.coefficients.iterkeys():
@@ -187,6 +189,10 @@ class PolynomialOverIntegral(Integral):
         return self.coefficients[self.degree()]
     def builder(self):
         return self.factory
+    def coefficient(self, k):
+        return self.coefficients.get(k,self.factory.inner_factory.zero())
+    def flip(self, n):
+        return self.factory({ n-k: v for k,v in self.coefficients.iteritems() })
     def pp(self):
         if(self.is_zero()):
             return self
@@ -234,6 +240,89 @@ class PolynomialOverIntegral(Integral):
     def __mod__(self, rop):
         return divmod(self, rop)[1]
 
+class IntegerPolynomial(PolynomialOverIntegral):
+    """docstring for IntegerPolynomial"""
+    def __init__(self, coefficients, builder):
+        super(IntegerPolynomial, self).__init__(coefficients, builder)
+    def factors(self):
+        for p in gen_primes():
+            if p == 5:
+                continue
+            GFp = algebra_computacional.factories.GaloisPolynomialFactory(p)
+            f_bar = GFp(str(self))
+            f_bar_prime = f_bar.derivative()
+            print p
+            print f_bar
+            print f_bar_prime
+            if not (self.leading_coefficient()%self.factory.inner_factory(p)).is_zero() and not f_bar_prime.is_zero() and f_bar.gcd(f_bar_prime).is_one():
+               prime = p
+               break
+        f_bar_factors = f_bar.factors2()
+        N = int(math.log((2**self.degree() + 1)*self.norm(),prime))
+        len_factors = len(f_bar_factors)
+        next_f_bar_factors = []
+        i = 1
+        while i < N:
+            i*=2
+            while len_factors > 0:
+                g = f_bar_factors.pop()
+                h = f_bar/g
+                gcd, s, t = g.eea(h)
+                if gcd.is_one():
+                    len_factors -=1
+                    print g
+                    print h
+                    g, h, _, _ = f_bar.hensel(*lift(g, h, s, t))
+                    print g
+                    print h
+                    next_f_bar_factors.append(g)
+                    if len_factors == 2:
+                        next_f_bar_factors.append(h)
+                        break
+                else:
+                    f_bar_factors = [g] + f_bar_factors
+            f_bar_factors = next_f_bar_factors[:]
+            len_factors = len(f_bar_factors)
+            next_f_bar_factors = []
+        return self.true_factors(f_bar_factors,prime,N)
+
+    def norm(self):
+        res = 0
+        for v in self.coefficients.itervalues():
+            res += (v.number*v.number)
+        return math.sqrt(res)
+    def true_factors(self, factors, p, N):
+        h = self
+        L = factors[0].factory.monomial(0,str(self.leading_coefficient()))
+        L_low = self.factory.monomial(0,str(self.leading_coefficient()))
+        Result = []
+        d = 1
+        l = len(factors)
+        I = set(range(l))
+        len_i = len(I)
+        while 2*d <= len_i:
+            J = set(itertools.combinations(I, d))
+            while J and 2*d <= len_i:
+                S = J.pop()
+                g_bar = L
+                for g in [factors[i] for i in S]:
+                    g_bar = g_bar*g
+                g = self.factory({k: self.factory.inner_factory((long(str(v)) if v <= (p**N)/2 else long(str(v))-(p**N)/2)) for k,v in g_bar.coefficients.iteritems()})
+                if (g % (L_low*h)).is_zero():
+                    gpp = g.pp()
+                    Result.append(gpp)
+                    h = h/gpp
+                    I = I.difference(S)
+                    J = J.difference([T for T in itertools.powerset(I) if set(T).intersect(S)])
+                d += 1
+        if h.degree() > 0:
+            Result.append(h)
+        return Result
+def lift(*poly):
+    new_GF = algebra_computacional.factories.GaloisPolynomialFactory(poly[0].factory.q**2)
+    return tuple([new_GF(str(p)) for p in poly])
+
+
 
 
 class PolynomialOverField(PolynomialOverIntegral, EuclideanDomain):
@@ -254,6 +343,11 @@ class PolynomialOverField(PolynomialOverIntegral, EuclideanDomain):
         return divmod(self, rop)[0]
     def __mod__(self, rop):
         return divmod(self, rop)[1]
+    def monic(self):
+        ld = self.leading_coefficient()
+        return self.factory({ k: v/ld for k,v in self.coefficients.iteritems() })
+    def gcd(self, b):
+        return self.eea(b)[0].monic()
 
 
 def list_power(l, exponent, one):
@@ -280,25 +374,68 @@ class PolynomialOverGalois(PolynomialOverField, Field):
     
     def frob_basis(self):
         base_size = self.degree()
-        image = [[] for _ in range(self.degree())]
-        for canonic in [self.factory.monomial(i) for i in range(base_size)]:
-            image.append((canonic^(self.factory.q) - canonic)%self)
-        result = gaussian_elimination(image)
-        return [cls.one(), result]
+        image = []
+        for i in range(base_size):
+            canonic = self.factory.monomial(i)
+            aux = (((canonic^(self.factory.q)) - canonic)%self) * self.factory.monomial(base_size)
+            image.append(aux + self.factory.monomial(base_size - 1 - i))
+        return gaussian_elimination_polynomials(image,base_size-1)
+    def factors1(self):
+        SQUAREFREE = self.squarefree()
+        factors = []
+        for sf in SQUAREFREE:
+            factors = factors + sf.bcz()
+        return factors
+    def factors2(self):
+        factors = []
+        SQUAREFREE = self.squarefree()
+        for sf in SQUAREFREE:
+            DISTINCTDEGREE = sf.distinctdegree()
+            for dd in DISTINCTDEGREE:
+                factors = factors + dd[0].equaldegree(dd[1])
+        return factors
+
 
     def berlekamp(self):
         basis = self.frob_basis()
         factors = [self]
         irreducibles = []
-        while len(factors) + len(irreducibles) < len(basis):
-            g = basis.pop()
-            h = g.berlekamp_splitting(prebase)
+        counter = 1
+        len_basis = len(basis)
+        while counter < len_basis:
+            g = factors.pop()
+            h = g.berlekamp_splitting(basis)
             if h != g:
                 factors.append(h)
                 factors.append(g/h)
+                counter+=1
             else:
                 irreducibles.append(g)
         return factors + irreducibles
+    def bcz(self):
+        basis = self.frob_basis()
+        result = [self]
+        counter = 1
+        len_basis = len(basis)
+        while counter < len_basis:
+            idx = random.randrange(0,counter)
+            g = result[idx]
+            while(g.degree()<=1):
+                idx = random.randrange(counter)
+                g = result[idx]
+            if idx < counter - 1:
+                result[idx] = result.pop()
+            else:
+                result.pop()
+            h = self.factory.zero()
+            for x in basis:
+                h = h + self.factory.monomial(0,self.factory.inner_factory.random())*x
+            w = g.gcd((h^((self.factory.q-1)/2)) - self.factory.one())
+            if not (w.is_one() or w == g):
+                result.append(w)
+                result.append(g/w)
+                counter+=1
+        return result
 
     def squarefree(self):
         derivative = self.derivative()
@@ -307,7 +444,7 @@ class PolynomialOverGalois(PolynomialOverField, Field):
         L = []
         g = [self.gcd(derivative)]
         w = [self / g[0]]
-        while not w[-1].is_one():
+        while not (w[-1].is_one() or w[-1].degree() == 0) :
             w.append(g[-1].gcd(w[-1]))
             g.append(g[-1]/w[-1])
             L.append(w[-2]/w[-1])
@@ -331,16 +468,51 @@ class PolynomialOverGalois(PolynomialOverField, Field):
         if not g[d].is_one():
             Result.append((g[d],g[d].degree()))
         return Result
-
+    def equaldegree(self, k):
+        def m_k(alpha, k):
+            w = self.factory.k
+            ret = self.factory.one()
+            next_alpha =  alpha
+            for i in range(1,w*k):
+                next_alpha = next_alpha*next_alpha
+                ret = ret + next_alpha
+            return ret % self
+        len_h = 1
+        len_h_prime = 0
+        r = self.degree()/k
+        H = [self]
+        H_prime = []
+        while len_h < r:
+            for h in H:
+                a = self.factory.random() % h
+                d = h.gcd(m_k(a,k))
+                if d.is_one() or d == h:
+                    H_prime.append(h)
+                    len_h_prime+=1
+                else:
+                    H_prime.append(d)
+                    H_prime.append(h/d)
+                    len_h_prime+=2
+            H = H_prime
+            len_h = len_h_prime
+        return H
+    def hensel(self, g, h, s, t):
+        delta = self - g*h
+        g_star = g*(self.factory.one() + ((s*delta)/h)) + t*delta
+        h_star = h + ((s*delta) % h)
+        sigma = s*g_star + t*h_star - self.factory.one()
+        s_star = s - ((s*sigma)%h_star)
+        t_star = (self.factory.one() - sigma)*t - g_star*((s*sigma)/h_star)
+        return g_star, h_star, s_star, t_star
     def berlekamp_splitting(self, prebase):
         s = len(prebase)
         if s is 1:
             return self
-        i = 2
-        elements = self.factory.element_iterator()
-        while i <= s:
+        i = 1
+        elements = self.factory.inner_factory.element_iterator()
+        while i < s:
             while elements.has_next():
-                element = elements.next()
+                element = self.factory.monomial(0,elements.next())
                 g = self.gcd(prebase[i] - element)
                 if not (g.is_one() or g == self):
                     return g
@@ -348,3 +520,63 @@ class PolynomialOverGalois(PolynomialOverField, Field):
             elements.restart()
         return self
 
+def gaussian_elimination_polynomials(image, max_degree):
+    s = len(image)
+    for i in range(s-1):
+        if image[i].degree() < max_degree:
+            found_bool = False
+            for j in range(i+1,s):
+                if image[j].degree() == max_degree:
+                    image[i], image[j] = image[j], image[i]
+                    found_bool = True
+                    break
+            if not found_bool:
+                max_degree-=1
+                continue
+        image[i] = image[i].monic()
+        for j in range(s):
+            if j < i:
+                if not image[j].coefficient(max_degree).is_zero():
+                    image[j] = image[j] - image[j].factory.monomial(0,image[j].coefficient(max_degree)/image[i].leading_coefficient())*image[i]
+            elif j > i:
+                if image[j].degree() == image[i].degree():
+                    image[j] = image[j] - image[j].factory.monomial(0,image[j].leading_coefficient()/image[i].leading_coefficient())*image[i]
+        max_degree-=1
+    return [x.flip(s-1) for x in image if x.degree() < s]
+
+# Sieve of Eratosthenes
+# Code by David Eppstein, UC Irvine, 28 Feb 2002
+# http://code.activestate.com/recipes/117119/
+def gen_primes():
+    """ Generate an infinite sequence of prime numbers.
+    """
+    # Maps composites to primes witnessing their compositeness.
+    # This is memory efficient, as the sieve is not "run forward"
+    # indefinitely, but only as long as required by the current
+    # number being tested.
+    #
+    D = {}
+    
+    # The running integer that's checked for primeness
+    q = 2
+    
+    while True:
+        if q not in D:
+            # q is a new prime.
+            # Yield it and mark its first multiple that isn't
+            # already marked in previous iterations
+            # 
+            yield q
+            D[q * q] = [q]
+        else:
+            # q is composite. D[q] is the list of primes that
+            # divide it. Since we've reached q, we no longer
+            # need it in the map, but we'll mark the next 
+            # multiples of its witnesses to prepare for larger
+            # numbers
+            # 
+            for p in D[q]:
+                D.setdefault(p + q, []).append(p)
+            del D[q]
+        
+        q += 1
