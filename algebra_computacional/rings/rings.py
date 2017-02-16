@@ -1,6 +1,6 @@
 __all__ = ['Integer', 'PolynomialOverIntegral', 'PolynomialOverField',
            'PolynomialOverGalois', 'QuotientElement', 'ModularInteger',
-           'GaussianInteger', 'IntegerPolynomial']
+           'GaussianInteger', 'IntegerPolynomial','Fractional']
 
 from algebra_computacional.structures import (EuclideanDomain,
                                               Field,
@@ -89,6 +89,38 @@ class Integer(EuclideanDomain):
         return str(self.number)
     def __repr__(self):
         return str(self.number)
+class Fractional(Field):
+    """docstring for Fractional"""
+    def __init__(self, a, b, factory):
+        super(Fractional, self).__init__()
+        self.a = a
+        self.b = b
+        self.factory = factory
+    def is_one(self):
+        return self.a == 1 and self.b ==1
+    def is_zero(self):
+        return self.a == 0
+    def __mod__(self, op2):
+        return self.factory.zero()
+    def __eq__(self, op2):
+        return self.a*op2.b == op2.a*self.b
+    def __add__(self, op2):
+        return self.factory((self.a*op2.b + op2.a*self.b,self.b*op2.b))
+    def __sub__(self, op2):
+        return self.factory((self.a*op2.b - op2.a*self.b,self.b*op2.b))
+    def __neg__(self):
+        return self.factory((-self.a,self.b))
+    def __mul__(self, op2):
+        return self.factory((self.a*op2.a,self.b*op2.b))
+    def __div__(self, op2):
+        return self.factory((self.a*op2.b,self.b*op2.a))
+    def __str__(self):
+        return str(self.a) + '/' + str(self.b)
+    def __repr__(self):
+        return str(self.a) + '/' + str(self.b)
+
+
+
 
 class QuotientElement(Field):
     """docstring for Int"""
@@ -214,10 +246,14 @@ class PolynomialOverIntegral(Integral):
     def derivative(self):
         return self.factory({ k-1: self.factory.inner_factory(str(k)) * v for k,v in self.coefficients.iteritems() if k != 0})
     def __str__(self):
-        return ' + '.join([(str(item[1]) if not item[1].is_one() or item[0] == 0 else '') +\
+        aux = ' + '.join([(str(item[1]) if not item[1].is_one() or item[0] == 0 else '') +\
                      (self.factory.variable if item[0] > 0 else '') +\
                       ('^' + str(item[0])  if item[0] > 1 else '') \
                       for item in self.coefficients.iteritems()])
+        aux = aux.replace('+ -','- ').replace('-1'+ self.factory.variable, '-'+self.factory.variable)
+        if self.degree() > 0:
+            aux = '(' + aux + ')'
+        return aux
     def __call__(self, expression):
         subs = self.factory.inner_factory(expression)
         result = self.factory.inner_factory.zero()
@@ -243,15 +279,44 @@ class PolynomialOverIntegral(Integral):
     def __mod__(self, rop):
         return divmod(self, rop)[1]
 
+
 class IntegerPolynomial(PolynomialOverIntegral):
     """docstring for IntegerPolynomial"""
     def __init__(self, coefficients, builder):
         super(IntegerPolynomial, self).__init__(coefficients, builder)
-    def factors(self):
+    def squarefree(self):
+        Q_X = algebra_computacional.factories.FractionalPolynomialFactory()
+        f = Q_X(str(self))
+        f_prime = f.derivative()
+        g = [f.gcd(f_prime)]
+        h = [f/g[-1]]
+        m = []
+        while not h[-1].is_one():
+            h.append(g[-1].gcd(h[-1]))
+            g.append(g[-1]/h[-1])
+            m.append(h[-2]/h[-1])
+        if len(m) == 1:
+            return [self]
+        return [self.factory(str(x)) for x in m]
+
+    def factors(self, rec=True):
+        if rec:
+            first_factors = self.squarefree()
+            i = 1
+            result = []
+            for x in first_factors:
+                result = result + x.factors(False)*i
+                i+=1
+            return result
+        if self.degree() == 1:
+            return [self]
+        elif self.degree() == 0:
+            return []
         for p in gen_primes():
             GFp = algebra_computacional.factories.GaloisPolynomialFactory(p)
             f_bar = GFp(str(self))
             f_bar_prime = f_bar.derivative()
+            aux = f_bar.gcd(f_bar_prime)
             if not (self.leading_coefficient()%self.factory.inner_factory(p)).is_zero() and not f_bar_prime.is_zero() and f_bar.gcd(f_bar_prime).is_one():
                prime = p
                break
@@ -264,28 +329,21 @@ class IntegerPolynomial(PolynomialOverIntegral):
         i = 1
         while i < N:         
             while len_factors > 0:
-                for x in f_bar_factors:
-                    print x
-                print '-----'
-                g = f_bar_factors.pop()
+                g = f_bar_factors.pop(0)
                 h = f/g
                 gcd, s, t = g.eea(h)
                 if gcd.is_one():
                     aux_f = h
                     len_factors -=1
-                    print 'g=',g
-                    print 'h=',h
                     aux, g, h, s, t = lift(f, g, h, s, t)
                     g, h, s, t = aux.hensel(g, h, s, t)
-                    print 'g*=',g
-                    print 'h*=',h
                     f = aux_f
                     next_f_bar_factors.insert(0,g)
                     if len_factors == 1:
                         next_f_bar_factors.insert(0,h)
                         break
                 else:
-                    f_bar_factors.insert(0,g)
+                    f_bar_factors.append(g)
             f_bar_factors = next_f_bar_factors[:]
             len_factors = len(f_bar_factors)
             next_f_bar_factors = []
@@ -326,7 +384,7 @@ class IntegerPolynomial(PolynomialOverIntegral):
             Result.append(h)
         return Result
 def lift(*poly):
-    new_GF = algebra_computacional.factories.GaloisPolynomialFactory(poly[0].factory.q**2)
+    new_GF = algebra_computacional.factories.GaloisPolynomialFactory(poly[-1].factory.q**2,lifted=True)
     return tuple([new_GF(str(p)) for p in poly])
 
 def powerset(iterable):
@@ -365,7 +423,10 @@ class PolynomialOverField(PolynomialOverIntegral, EuclideanDomain):
         return self.factory({ k: v/ld for k,v in self.coefficients.iteritems() })
         
     def gcd(self, b):
-        return self.eea(b)[0].monic()
+        aux = self.eea(b)[0]
+        if self.factory.monic:
+            return aux.monic()
+        return aux
     def eea(self, b):
         g, s, t = EuclideanDomain.eea(self, b)
         if g.degree() == 0:
@@ -373,6 +434,9 @@ class PolynomialOverField(PolynomialOverIntegral, EuclideanDomain):
             t = t/g
             g = self.factory.one();
         return g, s, t
+class FractionalPolynomial(PolynomialOverField):
+    def __init__(self, coefficients, builder):
+        super(PolynomialOverField, self).__init__(coefficients, builder)
 
 
 def list_power(l, exponent, one):
@@ -380,6 +444,8 @@ def list_power(l, exponent, one):
 
 class PolynomialOverGalois(PolynomialOverField, Field):
     def __init__(self, coefficients, builder):
+        if isinstance(builder,algebra_computacional.factories.GaloisPolynomialFactory) and builder.lifted:
+            coefficients = {k:v for k,v in coefficients.iteritems() if int(str(v)) == 0 or int(str(v)) == 1 or int(str(v)) == -1 or builder.p % int(str(v)) != 0}
         super(PolynomialOverGalois, self).__init__(coefficients, builder)
     def inverse(self):
         return self.factory.one() / self
@@ -410,7 +476,7 @@ class PolynomialOverGalois(PolynomialOverField, Field):
         image = []
         for i in range(base_size):
             canonic = self.factory.monomial(i)
-            aux = (((canonic^(self.factory.q)) - canonic)%self) * self.factory.monomial(base_size)
+            aux = (((canonic^(self.factory.q)) - canonic)%self).flip(base_size-1) * self.factory.monomial(base_size)
             image.append(aux + self.factory.monomial(base_size - 1 - i))
         return gaussian_elimination_polynomials(image,base_size-1)
     def factors1(self):
@@ -427,7 +493,6 @@ class PolynomialOverGalois(PolynomialOverField, Field):
             for dd in DISTINCTDEGREE:
                 factors = factors + dd[0].equaldegree(dd[1])
         return factors
-
 
     def berlekamp(self):
         basis = self.frob_basis()
@@ -460,10 +525,13 @@ class PolynomialOverGalois(PolynomialOverField, Field):
                 result[idx] = result.pop()
             else:
                 result.pop()
+
             h = self.factory.zero()
-            for x in basis:
-                h = h + self.factory.monomial(0,self.factory.inner_factory.random())*x
-            w = g.gcd((h^((self.factory.q-1)/2)) - self.factory.one())
+            while h.is_zero():
+                for x in basis:
+                    h = h + self.factory.monomial(0,self.factory.inner_factory.random())*x
+            aux = (h^((self.factory.q-1)/2)) - self.factory.one()
+            w = g.gcd(aux)
             if not (w.is_one() or w == g):
                 result.append(w)
                 result.append(g/w)
@@ -493,7 +561,7 @@ class PolynomialOverGalois(PolynomialOverField, Field):
         g = [self]
         x = self.factory.monomial(1)
         h = [x]
-        while d <= (g[d].degree() / 2 - 1):
+        while d <= ((g[d].degree() / 2) - 1):
             d = d + 1
             h.append((h[d-1]^(self.factory.q)) % g[d-1])
             aux = g[d-1].gcd(h[d] - x)

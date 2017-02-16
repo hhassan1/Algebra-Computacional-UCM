@@ -2,7 +2,7 @@ __all__ = ['Integral', 'EuclideanDomain', 'Field', 'GaloisField']
 
 from functools import reduce
 from algebra_computacional.utilities.haskell import scanl, scanr, zipWith
-
+import math
 
 class Integral(object):
     """docstring for Integral"""
@@ -51,10 +51,15 @@ class EuclideanDomain(Integral):
     def __init__(self):
         super(EuclideanDomain, self).__init__()
     def eea(self, b):
+        if self.is_zero():
+            return b, b.zero(), b.one()
+        elif b.is_zero():
+            return self, self.one(), self.zero()
         R = [self, b]
         S = [self.one(), self.zero()]
         T = [self.zero(), self.one()]
         i = 1
+        
         while not R[i].is_zero():
             Q = R[i-1] / R[i]
             R.append(R[i-1] - Q*R[i])
@@ -82,14 +87,28 @@ class Field(EuclideanDomain):
     def __init__(self):
         super(Field, self).__init__()
     def log(self, base):
-        if self.is_one():
-            return 0L
-        i = 1L
+        q = 1L
         ret = base
-        while(ret != self):
+        one = self.factory.one()
+        while(ret != one):
             ret = ret*base
-            i+=1
-        return i
+            q+=1
+        m = int(math.ceil(q**(0.5)))
+        T = dict()
+        beta = self.factory.one()
+        for i in range(m):
+            T[str(beta)] = i
+            beta = beta * base
+        gamma_prima = (base.inverse()^m)
+        beta = self
+        j = 0
+        i = T.get(str(beta))
+        while not i:
+            beta = beta*gamma_prima
+            j = j+1
+            i = T.get(str(beta))
+        return j*m + i
+        
 
 
 class GaloisField(Field):

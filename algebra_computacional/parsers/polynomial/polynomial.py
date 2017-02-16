@@ -30,6 +30,7 @@ class GenericPolynomialLexer(object):
         self.t_PLUS   = r'\+'
         self.t_MINUS  = r'-'
         self.t_TIMES  = r'\*'
+        self.t_DIVIDE  = r'/'
         self.t_POWER  = r'\^'
         self.t_LPAREN = r'\('
         self.t_RPAREN = r'\)'

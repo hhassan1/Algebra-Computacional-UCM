@@ -10,22 +10,24 @@ Rule 4     scalar -> num
 Rule 5     num -> num PLUS num
 Rule 6     num -> num MINUS num
 Rule 7     num -> num TIMES num
-Rule 8     num -> num POWER num
+Rule 8     num -> num DIV num
+Rule 9     num -> num POWER num
 
 Terminals, with rules where they appear
 
+DIV                  : 8
 LPAREN               : 3
 MINUS                : 2 6
 NUMBER               : 1
 PLUS                 : 5
-POWER                : 8
+POWER                : 9
 RPAREN               : 3
 TIMES                : 7
 error                : 
 
 Nonterminals, with rules where they appear
 
-num                  : 2 3 4 5 5 6 6 7 7 8 8
+num                  : 2 3 4 5 5 6 6 7 7 8 8 9 9
 scalar               : 0
 
 Parsing method: LALR
@@ -40,7 +42,8 @@ state 0
     (5) num -> . num PLUS num
     (6) num -> . num MINUS num
     (7) num -> . num TIMES num
-    (8) num -> . num POWER num
+    (8) num -> . num DIV num
+    (9) num -> . num POWER num
 
     NUMBER          shift and go to state 1
     MINUS           shift and go to state 5
@@ -56,6 +59,7 @@ state 1
     PLUS            reduce using rule 1 (num -> NUMBER .)
     MINUS           reduce using rule 1 (num -> NUMBER .)
     TIMES           reduce using rule 1 (num -> NUMBER .)
+    DIV             reduce using rule 1 (num -> NUMBER .)
     POWER           reduce using rule 1 (num -> NUMBER .)
     $end            reduce using rule 1 (num -> NUMBER .)
     RPAREN          reduce using rule 1 (num -> NUMBER .)
@@ -73,13 +77,15 @@ state 3
     (5) num -> num . PLUS num
     (6) num -> num . MINUS num
     (7) num -> num . TIMES num
-    (8) num -> num . POWER num
+    (8) num -> num . DIV num
+    (9) num -> num . POWER num
 
     $end            reduce using rule 4 (scalar -> num .)
-    PLUS            shift and go to state 6
-    MINUS           shift and go to state 7
-    TIMES           shift and go to state 9
-    POWER           shift and go to state 8
+    PLUS            shift and go to state 8
+    MINUS           shift and go to state 10
+    TIMES           shift and go to state 7
+    DIV             shift and go to state 9
+    POWER           shift and go to state 6
 
 
 state 4
@@ -91,13 +97,14 @@ state 4
     (5) num -> . num PLUS num
     (6) num -> . num MINUS num
     (7) num -> . num TIMES num
-    (8) num -> . num POWER num
+    (8) num -> . num DIV num
+    (9) num -> . num POWER num
 
     NUMBER          shift and go to state 1
     MINUS           shift and go to state 5
     LPAREN          shift and go to state 4
 
-    num                            shift and go to state 10
+    num                            shift and go to state 11
 
 state 5
 
@@ -108,24 +115,8 @@ state 5
     (5) num -> . num PLUS num
     (6) num -> . num MINUS num
     (7) num -> . num TIMES num
-    (8) num -> . num POWER num
-
-    NUMBER          shift and go to state 1
-    MINUS           shift and go to state 5
-    LPAREN          shift and go to state 4
-
-    num                            shift and go to state 11
-
-state 6
-
-    (5) num -> num PLUS . num
-    (1) num -> . NUMBER
-    (2) num -> . MINUS num
-    (3) num -> . LPAREN num RPAREN
-    (5) num -> . num PLUS num
-    (6) num -> . num MINUS num
-    (7) num -> . num TIMES num
-    (8) num -> . num POWER num
+    (8) num -> . num DIV num
+    (9) num -> . num POWER num
 
     NUMBER          shift and go to state 1
     MINUS           shift and go to state 5
@@ -133,16 +124,17 @@ state 6
 
     num                            shift and go to state 12
 
-state 7
+state 6
 
-    (6) num -> num MINUS . num
+    (9) num -> num POWER . num
     (1) num -> . NUMBER
     (2) num -> . MINUS num
     (3) num -> . LPAREN num RPAREN
     (5) num -> . num PLUS num
     (6) num -> . num MINUS num
     (7) num -> . num TIMES num
-    (8) num -> . num POWER num
+    (8) num -> . num DIV num
+    (9) num -> . num POWER num
 
     NUMBER          shift and go to state 1
     MINUS           shift and go to state 5
@@ -150,24 +142,7 @@ state 7
 
     num                            shift and go to state 13
 
-state 8
-
-    (8) num -> num POWER . num
-    (1) num -> . NUMBER
-    (2) num -> . MINUS num
-    (3) num -> . LPAREN num RPAREN
-    (5) num -> . num PLUS num
-    (6) num -> . num MINUS num
-    (7) num -> . num TIMES num
-    (8) num -> . num POWER num
-
-    NUMBER          shift and go to state 1
-    MINUS           shift and go to state 5
-    LPAREN          shift and go to state 4
-
-    num                            shift and go to state 14
-
-state 9
+state 7
 
     (7) num -> num TIMES . num
     (1) num -> . NUMBER
@@ -176,7 +151,26 @@ state 9
     (5) num -> . num PLUS num
     (6) num -> . num MINUS num
     (7) num -> . num TIMES num
-    (8) num -> . num POWER num
+    (8) num -> . num DIV num
+    (9) num -> . num POWER num
+
+    NUMBER          shift and go to state 1
+    MINUS           shift and go to state 5
+    LPAREN          shift and go to state 4
+
+    num                            shift and go to state 14
+
+state 8
+
+    (5) num -> num PLUS . num
+    (1) num -> . NUMBER
+    (2) num -> . MINUS num
+    (3) num -> . LPAREN num RPAREN
+    (5) num -> . num PLUS num
+    (6) num -> . num MINUS num
+    (7) num -> . num TIMES num
+    (8) num -> . num DIV num
+    (9) num -> . num POWER num
 
     NUMBER          shift and go to state 1
     MINUS           shift and go to state 5
@@ -184,133 +178,211 @@ state 9
 
     num                            shift and go to state 15
 
+state 9
+
+    (8) num -> num DIV . num
+    (1) num -> . NUMBER
+    (2) num -> . MINUS num
+    (3) num -> . LPAREN num RPAREN
+    (5) num -> . num PLUS num
+    (6) num -> . num MINUS num
+    (7) num -> . num TIMES num
+    (8) num -> . num DIV num
+    (9) num -> . num POWER num
+
+    NUMBER          shift and go to state 1
+    MINUS           shift and go to state 5
+    LPAREN          shift and go to state 4
+
+    num                            shift and go to state 16
+
 state 10
+
+    (6) num -> num MINUS . num
+    (1) num -> . NUMBER
+    (2) num -> . MINUS num
+    (3) num -> . LPAREN num RPAREN
+    (5) num -> . num PLUS num
+    (6) num -> . num MINUS num
+    (7) num -> . num TIMES num
+    (8) num -> . num DIV num
+    (9) num -> . num POWER num
+
+    NUMBER          shift and go to state 1
+    MINUS           shift and go to state 5
+    LPAREN          shift and go to state 4
+
+    num                            shift and go to state 17
+
+state 11
 
     (3) num -> LPAREN num . RPAREN
     (5) num -> num . PLUS num
     (6) num -> num . MINUS num
     (7) num -> num . TIMES num
-    (8) num -> num . POWER num
+    (8) num -> num . DIV num
+    (9) num -> num . POWER num
 
-    RPAREN          shift and go to state 16
-    PLUS            shift and go to state 6
-    MINUS           shift and go to state 7
-    TIMES           shift and go to state 9
-    POWER           shift and go to state 8
+    RPAREN          shift and go to state 18
+    PLUS            shift and go to state 8
+    MINUS           shift and go to state 10
+    TIMES           shift and go to state 7
+    DIV             shift and go to state 9
+    POWER           shift and go to state 6
 
 
-state 11
+state 12
 
     (2) num -> MINUS num .
     (5) num -> num . PLUS num
     (6) num -> num . MINUS num
     (7) num -> num . TIMES num
-    (8) num -> num . POWER num
+    (8) num -> num . DIV num
+    (9) num -> num . POWER num
 
     PLUS            reduce using rule 2 (num -> MINUS num .)
     MINUS           reduce using rule 2 (num -> MINUS num .)
     TIMES           reduce using rule 2 (num -> MINUS num .)
+    DIV             reduce using rule 2 (num -> MINUS num .)
     POWER           reduce using rule 2 (num -> MINUS num .)
     $end            reduce using rule 2 (num -> MINUS num .)
     RPAREN          reduce using rule 2 (num -> MINUS num .)
 
-  ! PLUS            [ shift and go to state 6 ]
-  ! MINUS           [ shift and go to state 7 ]
-  ! TIMES           [ shift and go to state 9 ]
-  ! POWER           [ shift and go to state 8 ]
-
-
-state 12
-
-    (5) num -> num PLUS num .
-    (5) num -> num . PLUS num
-    (6) num -> num . MINUS num
-    (7) num -> num . TIMES num
-    (8) num -> num . POWER num
-
-    PLUS            reduce using rule 5 (num -> num PLUS num .)
-    MINUS           reduce using rule 5 (num -> num PLUS num .)
-    $end            reduce using rule 5 (num -> num PLUS num .)
-    RPAREN          reduce using rule 5 (num -> num PLUS num .)
-    TIMES           shift and go to state 9
-    POWER           shift and go to state 8
-
-  ! TIMES           [ reduce using rule 5 (num -> num PLUS num .) ]
-  ! POWER           [ reduce using rule 5 (num -> num PLUS num .) ]
-  ! PLUS            [ shift and go to state 6 ]
-  ! MINUS           [ shift and go to state 7 ]
+  ! PLUS            [ shift and go to state 8 ]
+  ! MINUS           [ shift and go to state 10 ]
+  ! TIMES           [ shift and go to state 7 ]
+  ! DIV             [ shift and go to state 9 ]
+  ! POWER           [ shift and go to state 6 ]
 
 
 state 13
 
-    (6) num -> num MINUS num .
+    (9) num -> num POWER num .
     (5) num -> num . PLUS num
     (6) num -> num . MINUS num
     (7) num -> num . TIMES num
-    (8) num -> num . POWER num
+    (8) num -> num . DIV num
+    (9) num -> num . POWER num
 
-    PLUS            reduce using rule 6 (num -> num MINUS num .)
-    MINUS           reduce using rule 6 (num -> num MINUS num .)
-    $end            reduce using rule 6 (num -> num MINUS num .)
-    RPAREN          reduce using rule 6 (num -> num MINUS num .)
-    TIMES           shift and go to state 9
-    POWER           shift and go to state 8
+    PLUS            reduce using rule 9 (num -> num POWER num .)
+    MINUS           reduce using rule 9 (num -> num POWER num .)
+    TIMES           reduce using rule 9 (num -> num POWER num .)
+    DIV             reduce using rule 9 (num -> num POWER num .)
+    $end            reduce using rule 9 (num -> num POWER num .)
+    RPAREN          reduce using rule 9 (num -> num POWER num .)
+    POWER           shift and go to state 6
 
-  ! TIMES           [ reduce using rule 6 (num -> num MINUS num .) ]
-  ! POWER           [ reduce using rule 6 (num -> num MINUS num .) ]
-  ! PLUS            [ shift and go to state 6 ]
-  ! MINUS           [ shift and go to state 7 ]
+  ! POWER           [ reduce using rule 9 (num -> num POWER num .) ]
+  ! PLUS            [ shift and go to state 8 ]
+  ! MINUS           [ shift and go to state 10 ]
+  ! TIMES           [ shift and go to state 7 ]
+  ! DIV             [ shift and go to state 9 ]
 
 
 state 14
-
-    (8) num -> num POWER num .
-    (5) num -> num . PLUS num
-    (6) num -> num . MINUS num
-    (7) num -> num . TIMES num
-    (8) num -> num . POWER num
-
-    PLUS            reduce using rule 8 (num -> num POWER num .)
-    MINUS           reduce using rule 8 (num -> num POWER num .)
-    TIMES           reduce using rule 8 (num -> num POWER num .)
-    $end            reduce using rule 8 (num -> num POWER num .)
-    RPAREN          reduce using rule 8 (num -> num POWER num .)
-    POWER           shift and go to state 8
-
-  ! POWER           [ reduce using rule 8 (num -> num POWER num .) ]
-  ! PLUS            [ shift and go to state 6 ]
-  ! MINUS           [ shift and go to state 7 ]
-  ! TIMES           [ shift and go to state 9 ]
-
-
-state 15
 
     (7) num -> num TIMES num .
     (5) num -> num . PLUS num
     (6) num -> num . MINUS num
     (7) num -> num . TIMES num
-    (8) num -> num . POWER num
+    (8) num -> num . DIV num
+    (9) num -> num . POWER num
 
     PLUS            reduce using rule 7 (num -> num TIMES num .)
     MINUS           reduce using rule 7 (num -> num TIMES num .)
     TIMES           reduce using rule 7 (num -> num TIMES num .)
+    DIV             reduce using rule 7 (num -> num TIMES num .)
     $end            reduce using rule 7 (num -> num TIMES num .)
     RPAREN          reduce using rule 7 (num -> num TIMES num .)
-    POWER           shift and go to state 8
+    POWER           shift and go to state 6
 
   ! POWER           [ reduce using rule 7 (num -> num TIMES num .) ]
-  ! PLUS            [ shift and go to state 6 ]
-  ! MINUS           [ shift and go to state 7 ]
-  ! TIMES           [ shift and go to state 9 ]
+  ! PLUS            [ shift and go to state 8 ]
+  ! MINUS           [ shift and go to state 10 ]
+  ! TIMES           [ shift and go to state 7 ]
+  ! DIV             [ shift and go to state 9 ]
+
+
+state 15
+
+    (5) num -> num PLUS num .
+    (5) num -> num . PLUS num
+    (6) num -> num . MINUS num
+    (7) num -> num . TIMES num
+    (8) num -> num . DIV num
+    (9) num -> num . POWER num
+
+    PLUS            reduce using rule 5 (num -> num PLUS num .)
+    MINUS           reduce using rule 5 (num -> num PLUS num .)
+    $end            reduce using rule 5 (num -> num PLUS num .)
+    RPAREN          reduce using rule 5 (num -> num PLUS num .)
+    TIMES           shift and go to state 7
+    DIV             shift and go to state 9
+    POWER           shift and go to state 6
+
+  ! TIMES           [ reduce using rule 5 (num -> num PLUS num .) ]
+  ! DIV             [ reduce using rule 5 (num -> num PLUS num .) ]
+  ! POWER           [ reduce using rule 5 (num -> num PLUS num .) ]
+  ! PLUS            [ shift and go to state 8 ]
+  ! MINUS           [ shift and go to state 10 ]
 
 
 state 16
+
+    (8) num -> num DIV num .
+    (5) num -> num . PLUS num
+    (6) num -> num . MINUS num
+    (7) num -> num . TIMES num
+    (8) num -> num . DIV num
+    (9) num -> num . POWER num
+
+    PLUS            reduce using rule 8 (num -> num DIV num .)
+    MINUS           reduce using rule 8 (num -> num DIV num .)
+    TIMES           reduce using rule 8 (num -> num DIV num .)
+    DIV             reduce using rule 8 (num -> num DIV num .)
+    $end            reduce using rule 8 (num -> num DIV num .)
+    RPAREN          reduce using rule 8 (num -> num DIV num .)
+    POWER           shift and go to state 6
+
+  ! POWER           [ reduce using rule 8 (num -> num DIV num .) ]
+  ! PLUS            [ shift and go to state 8 ]
+  ! MINUS           [ shift and go to state 10 ]
+  ! TIMES           [ shift and go to state 7 ]
+  ! DIV             [ shift and go to state 9 ]
+
+
+state 17
+
+    (6) num -> num MINUS num .
+    (5) num -> num . PLUS num
+    (6) num -> num . MINUS num
+    (7) num -> num . TIMES num
+    (8) num -> num . DIV num
+    (9) num -> num . POWER num
+
+    PLUS            reduce using rule 6 (num -> num MINUS num .)
+    MINUS           reduce using rule 6 (num -> num MINUS num .)
+    $end            reduce using rule 6 (num -> num MINUS num .)
+    RPAREN          reduce using rule 6 (num -> num MINUS num .)
+    TIMES           shift and go to state 7
+    DIV             shift and go to state 9
+    POWER           shift and go to state 6
+
+  ! TIMES           [ reduce using rule 6 (num -> num MINUS num .) ]
+  ! DIV             [ reduce using rule 6 (num -> num MINUS num .) ]
+  ! POWER           [ reduce using rule 6 (num -> num MINUS num .) ]
+  ! PLUS            [ shift and go to state 8 ]
+  ! MINUS           [ shift and go to state 10 ]
+
+
+state 18
 
     (3) num -> LPAREN num RPAREN .
 
     PLUS            reduce using rule 3 (num -> LPAREN num RPAREN .)
     MINUS           reduce using rule 3 (num -> LPAREN num RPAREN .)
     TIMES           reduce using rule 3 (num -> LPAREN num RPAREN .)
+    DIV             reduce using rule 3 (num -> LPAREN num RPAREN .)
     POWER           reduce using rule 3 (num -> LPAREN num RPAREN .)
     $end            reduce using rule 3 (num -> LPAREN num RPAREN .)
     RPAREN          reduce using rule 3 (num -> LPAREN num RPAREN .)

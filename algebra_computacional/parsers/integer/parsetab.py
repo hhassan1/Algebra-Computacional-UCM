@@ -5,9 +5,9 @@ _tabversion = '3.10'
 
 _lr_method = 'LALR'
 
-_lr_signature = '520C97A7C961B235341D5B7425B7E5DA'
+_lr_signature = '9BBD9B6A103078D5359AC2D13C7C7157'
     
-_lr_action_items = {'RPAREN':([1,10,11,12,13,14,15,16,],[-1,16,-2,-5,-6,-8,-7,-3,]),'POWER':([1,3,10,11,12,13,14,15,16,],[-1,8,8,-2,8,8,8,8,-3,]),'NUMBER':([0,4,5,6,7,8,9,],[1,1,1,1,1,1,1,]),'TIMES':([1,3,10,11,12,13,14,15,16,],[-1,9,9,-2,9,9,-8,-7,-3,]),'PLUS':([1,3,10,11,12,13,14,15,16,],[-1,6,6,-2,-5,-6,-8,-7,-3,]),'LPAREN':([0,4,5,6,7,8,9,],[4,4,4,4,4,4,4,]),'MINUS':([0,1,3,4,5,6,7,8,9,10,11,12,13,14,15,16,],[5,-1,7,5,5,5,5,5,5,7,-2,-5,-6,-8,-7,-3,]),'$end':([1,2,3,11,12,13,14,15,16,],[-1,0,-4,-2,-5,-6,-8,-7,-3,]),}
+_lr_action_items = {'RPAREN':([1,2,12,13,14,15,16,17,18,19,20,],[-11,-10,20,-8,-6,-12,-7,-5,-3,-4,-9,]),'DIVIDE':([1,2,3,12,13,14,15,16,17,18,19,20,],[-11,-10,7,7,-8,-6,-12,-7,-5,7,7,-9,]),'POWER':([1,2,3,12,13,14,15,16,17,18,19,20,],[-11,-10,8,8,-8,8,-12,-7,8,8,8,-9,]),'NUMBER':([0,5,6,7,8,9,10,11,],[1,1,1,1,16,1,1,1,]),'TIMES':([1,2,3,12,13,14,15,16,17,18,19,20,],[-11,-10,9,9,-8,-6,-12,-7,-5,9,9,-9,]),'SCALAR':([0,5,6,7,9,10,11,],[2,2,2,2,2,2,2,]),'PLUS':([1,2,3,12,13,14,15,16,17,18,19,20,],[-11,-10,10,10,-8,-6,-12,-7,-5,-3,-4,-9,]),'LPAREN':([0,5,6,7,9,10,11,],[5,5,5,5,5,5,5,]),'MINUS':([0,1,2,3,5,6,7,9,10,11,12,13,14,15,16,17,18,19,20,],[6,-11,-10,11,6,6,6,6,6,6,11,-8,-6,-12,-7,-5,-3,-4,-9,]),'$end':([0,1,2,3,4,13,14,15,16,17,18,19,20,],[-1,-11,-10,-2,0,-8,-6,-12,-7,-5,-3,-4,-9,]),}
 
 _lr_action = {}
 for _k, _v in _lr_action_items.items():
@@ -16,7 +16,7 @@ for _k, _v in _lr_action_items.items():
       _lr_action[_x][_k] = _y
 del _lr_action_items
 
-_lr_goto_items = {'scalar':([0,],[2,]),'num':([0,4,5,6,7,8,9,],[3,10,11,12,13,14,15,]),}
+_lr_goto_items = {'scalar':([0,5,6,7,9,10,11,],[3,12,13,14,17,18,19,]),'number':([8,],[15,]),'statement':([0,],[4,]),}
 
 _lr_goto = {}
 for _k, _v in _lr_goto_items.items():
@@ -25,13 +25,17 @@ for _k, _v in _lr_goto_items.items():
        _lr_goto[_x][_k] = _y
 del _lr_goto_items
 _lr_productions = [
-  ("S' -> scalar","S'",1,None,None,None),
-  ('num -> NUMBER','num',1,'p_num_number','integer.py',26),
-  ('num -> MINUS num','num',2,'p_num_uminus','integer.py',29),
-  ('num -> LPAREN num RPAREN','num',3,'p_num_group','integer.py',32),
-  ('scalar -> num','scalar',1,'p_scalar','integer.py',37),
-  ('num -> num PLUS num','num',3,'p_num_binop','integer.py',40),
-  ('num -> num MINUS num','num',3,'p_num_binop','integer.py',41),
-  ('num -> num TIMES num','num',3,'p_num_binop','integer.py',42),
-  ('num -> num POWER num','num',3,'p_num_binop','integer.py',43),
+  ("S' -> statement","S'",1,None,None,None),
+  ('statement -> <empty>','statement',0,'p_statement_empty','integer.py',71),
+  ('statement -> scalar','statement',1,'p_statement_expr','integer.py',74),
+  ('scalar -> scalar PLUS scalar','scalar',3,'p_scalar_arith','integer.py',78),
+  ('scalar -> scalar MINUS scalar','scalar',3,'p_scalar_arith','integer.py',79),
+  ('scalar -> scalar TIMES scalar','scalar',3,'p_scalar_arith','integer.py',80),
+  ('scalar -> scalar DIVIDE scalar','scalar',3,'p_scalar_arith','integer.py',81),
+  ('number -> NUMBER','number',1,'p_number_single','integer.py',88),
+  ('scalar -> MINUS scalar','scalar',2,'p_scalar_uminus','integer.py',92),
+  ('scalar -> LPAREN scalar RPAREN','scalar',3,'p_scalar_parenthesis','integer.py',95),
+  ('scalar -> SCALAR','scalar',1,'p_scalar_single','integer.py',98),
+  ('scalar -> NUMBER','scalar',1,'p_scalar_single','integer.py',99),
+  ('scalar -> scalar POWER number','scalar',3,'p_scalar_power','integer.py',102),
 ]

@@ -5,7 +5,7 @@ from algebra_computacional.rings import (Integer,
                                          QuotientElement,
                                          ModularInteger,
                                          GaussianInteger,
-                                         
+                                         Fractional
                                         )
 import algebra_computacional.rings
 from algebra_computacional.structures import (GaloisField,
@@ -14,6 +14,7 @@ from algebra_computacional.structures import (GaloisField,
 from algebra_computacional.parsers import int_parse, poly_parse
 from collections import OrderedDict
 import random
+import algebra_computacional.utilities.haskell as haskell
 
 
 class IntegerFactory(object):
@@ -24,7 +25,7 @@ class IntegerFactory(object):
         self.scalar_regex = r'\d+'
     def __call__(self, expression):
         if isinstance(expression, basestring):
-            return Integer(int_parse(expression), self)
+            return int_parse(self, expression)
         elif isinstance(expression, (int, long)):
             return Integer(long(expression), self)
     def zero(self):
@@ -36,7 +37,42 @@ class IntegerFactory(object):
         term.value = Integer(long(term.value), self)
         return term
     def random(self):
-        return random.randint(-10000000L,10000000L)
+        return Integer(random.randint(-10000000L,10000000L),self)
+class FractionalFactory(object):
+    """docstring for IntegerRing"""
+    def __init__(self):
+        super(FractionalFactory, self).__init__()
+        self.product = Fractional
+        self.scalar_regex = r'\d+'
+    def __call__(self, expression):
+        if isinstance(expression, basestring):
+            val = int_parse(self, expression)
+            g = haskell.gcd(val.a,val.b)
+            if g != 0:
+                val.a /= g
+                val.b /= g
+            else:
+                val.a = 0L
+                val.b = 1L
+            return val
+        elif isinstance(expression, (int, long)):
+            return Fractional(long(expression),1L, self)
+        elif isinstance(expression, tuple):
+            g = haskell.gcd(expression[0],expression[1])
+            if g != 0:
+                return Fractional(expression[0]/g,expression[1]/g, self)
+            else:
+                return Fractional(0L,1L, self)
+    def zero(self):
+        return Fractional(0L,1L, self)
+    def one(self):
+        return Fractional(1L,1L, self)
+    def scalar_translator(self, term):
+        r'\d+'
+        term.value = Fractional(long(term.value),1L, self)
+        return term
+    def random(self):
+        return self(random.randint(-10000000L,10000000L),random.randint(1,10000000L))
 
 
 class PolynomialFactory(object):
@@ -45,6 +81,7 @@ class PolynomialFactory(object):
         super(PolynomialFactory, self).__init__()
         self.inner_factory = factory
         self.variable = variable
+        self.monic = True
         if factory.scalar_regex != r'\d+':
             self.scalar_regex = factory.scalar_regex + '|' + variable
         else:
@@ -107,7 +144,10 @@ class QuotientFactory(object):
         self.inner_factory = factory
         self.scalar_regex = self.inner_factory.scalar_regex
         self.product = QuotientElement
-        self.quotient_factor = factory(expression)
+        if isinstance(expression,factory.product):
+            self.quotient_factor = expression
+        else:
+            self.quotient_factor = factory(expression)
     def __call__(self, expression):
         if isinstance(expression, (basestring,int,float)):
             ret = self.inner_factory(expression)
@@ -156,13 +196,15 @@ class GaloisQuotientFactory(QuotientFactory):
         return GaloisIterator(self)
 
 class GaloisPolynomialFactory(PolynomialFactory):
-    def __init__(self, p, expression=None, variable='x'):
+    def __init__(self, p, expression=None, variable='x',lifted = False):
         if expression:
             factory = GaloisQuotientFactory(p,expression)
             self.k = factory.k
+            self.lifted = False
         else:
             factory = ModularIntegerFactory(p)
             self.k = 1
+            self.lifted = lifted
         super(GaloisPolynomialFactory, self).__init__(factory,variable)
         self.quotient_factor = self.inner_factory.quotient_factor
         self.p = p
@@ -230,3 +272,9 @@ class GaloisIterator(object):
         self.counter = 0
         self.counters = [0 for i in range(self.k)]
         self.item = self.factory.zero()
+
+class FractionalPolynomialFactory(PolynomialFactory):
+    def __init__(self, variable='x'):
+        super(FractionalPolynomialFactory, self).__init__(FractionalFactory(),variable)
+        #self.monic = False
+
