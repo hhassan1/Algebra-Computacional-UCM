@@ -250,7 +250,7 @@ class PolynomialOverIntegral(Integral):
                      (self.factory.variable if item[0] > 0 else '') +\
                       ('^' + str(item[0])  if item[0] > 1 else '') \
                       for item in self.coefficients.iteritems()])
-        aux = aux.replace('+ -','- ').replace('-1'+ self.factory.variable, '-'+self.factory.variable)
+        aux = aux.replace('-1'+ self.factory.variable, '-'+self.factory.variable).replace('+ -','- ')
         if self.degree() > 0:
             aux = '(' + aux + ')'
         return aux
@@ -299,13 +299,17 @@ class IntegerPolynomial(PolynomialOverIntegral):
             return [self]
         return [self.factory(str(x)) for x in m]
 
-    def factors(self, rec=True):
+    def factors(self, rec=True, tuplify=False):
         if rec:
             first_factors = self.squarefree()
             i = 1
             result = []
             for x in first_factors:
-                result = result + x.factors(False)*i
+                if tuplify:
+                    for y in x.factors(rec=False):
+                        result.append((y,i))
+                else:
+                    result = result + x.factors(rec=False)*i
                 i+=1
             return result
         if self.degree() == 1:
@@ -479,20 +483,48 @@ class PolynomialOverGalois(PolynomialOverField, Field):
             aux = (((canonic^(self.factory.q)) - canonic)%self).flip(base_size-1) * self.factory.monomial(base_size)
             image.append(aux + self.factory.monomial(base_size - 1 - i))
         return gaussian_elimination_polynomials(image,base_size-1)
-    def factors1(self):
+    def factors1(self,tuplify=False):
         SQUAREFREE = self.squarefree()
         factors = []
+        i = 1
         for sf in SQUAREFREE:
-            factors = factors + sf.bcz()
+            if not sf.is_one():
+                if tuplify:
+                    for x in sf.bcz():
+                        factors.append((x,i))
+                else:
+                    factors = factors + sf.bcz()*i
+            i+=1
         return factors
-    def factors2(self):
+    def factors2(self,tuplify=False):
         factors = []
+        i = 1
         SQUAREFREE = self.squarefree()
         for sf in SQUAREFREE:
-            DISTINCTDEGREE = sf.distinctdegree()
-            for dd in DISTINCTDEGREE:
-                factors = factors + dd[0].equaldegree(dd[1])
+            if not sf.is_one():
+                DISTINCTDEGREE = sf.distinctdegree()
+                for dd in DISTINCTDEGREE:
+                    if tuplify:
+                        for x in dd[0].equaldegree(dd[1]):
+                            factors.append((x,i))
+                    else:
+                        factors = factors + dd[0].equaldegree(dd[1])*i
+            i+=1
         return factors
+    def factors3(self,tuplify=False):
+        factors = []
+        SQUAREFREE = self.squarefree()
+        i = 1
+        for sf in SQUAREFREE:
+            if not sf.is_one():
+                if tuplify:
+                    for x in sf.berlekamp():
+                        factors.append((x,i))
+                else:
+                    factors = factors + sf.berlekamp()*i
+            i+=1
+        return factors
+            
 
     def berlekamp(self):
         basis = self.frob_basis()
