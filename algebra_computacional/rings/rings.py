@@ -152,6 +152,8 @@ class ModularInteger(QuotientElement, GaloisField):
     """docstring for Int"""
     def __init__(self, value, factory):    
         super(ModularInteger, self).__init__(value, factory)
+        if value.number > (factory.p)/2:
+            value.number -= factory.p
     def inverse(self):
         g, u, v = eea(self.value.number,self.factory.quotient_factor.number)
         if g == -1:
@@ -196,7 +198,7 @@ class PolynomialOverIntegral(Integral):
     def pp(self):
         if(self.is_zero()):
             return self
-        gcd = foldl(self.factory.inner_factory.zero().gcd.__func__, self.coefficients[0], self.coefficients.itervalues())
+        gcd = foldl(self.factory.inner_factory.zero().gcd.__func__, self.coefficients.values()[0], self.coefficients.itervalues())
         return self.factory({k: v/gcd for k, v in self.coefficients.iteritems()})
     def pea(self, b):
         R = [self, b]
@@ -220,8 +222,9 @@ class PolynomialOverIntegral(Integral):
         subs = self.factory.inner_factory(expression)
         result = self.factory.inner_factory.zero()
         for k in xrange(self.degree(),-1,-1):
-            scalar = self.coefficients.get(k,self.factory.inner_factory.zero())
+            scalar = self.coefficient(k)
             result = result*subs + scalar
+        return result
     def __divmod__(self, rop):
         if rop.is_zero():
             raise ZeroDivisionError
@@ -246,14 +249,9 @@ class IntegerPolynomial(PolynomialOverIntegral):
         super(IntegerPolynomial, self).__init__(coefficients, builder)
     def factors(self):
         for p in gen_primes():
-            if p == 5:
-                continue
             GFp = algebra_computacional.factories.GaloisPolynomialFactory(p)
             f_bar = GFp(str(self))
             f_bar_prime = f_bar.derivative()
-            print p
-            print f_bar
-            print f_bar_prime
             if not (self.leading_coefficient()%self.factory.inner_factory(p)).is_zero() and not f_bar_prime.is_zero() and f_bar.gcd(f_bar_prime).is_one():
                prime = p
                break
@@ -261,29 +259,39 @@ class IntegerPolynomial(PolynomialOverIntegral):
         N = int(math.log((2**self.degree() + 1)*self.norm(),prime))
         len_factors = len(f_bar_factors)
         next_f_bar_factors = []
+        f = f_bar
+        lifted_f = lift(f_bar)[0]
         i = 1
-        while i < N:
-            i*=2
+        while i < N:         
             while len_factors > 0:
+                for x in f_bar_factors:
+                    print x
+                print '-----'
                 g = f_bar_factors.pop()
-                h = f_bar/g
+                h = f/g
                 gcd, s, t = g.eea(h)
                 if gcd.is_one():
+                    aux_f = h
                     len_factors -=1
-                    print g
-                    print h
-                    g, h, _, _ = f_bar.hensel(*lift(g, h, s, t))
-                    print g
-                    print h
-                    next_f_bar_factors.append(g)
-                    if len_factors == 2:
-                        next_f_bar_factors.append(h)
+                    print 'g=',g
+                    print 'h=',h
+                    aux, g, h, s, t = lift(f, g, h, s, t)
+                    g, h, s, t = aux.hensel(g, h, s, t)
+                    print 'g*=',g
+                    print 'h*=',h
+                    f = aux_f
+                    next_f_bar_factors.insert(0,g)
+                    if len_factors == 1:
+                        next_f_bar_factors.insert(0,h)
                         break
                 else:
-                    f_bar_factors = [g] + f_bar_factors
+                    f_bar_factors.insert(0,g)
             f_bar_factors = next_f_bar_factors[:]
             len_factors = len(f_bar_factors)
             next_f_bar_factors = []
+            f = lifted_f
+            lifted_f = lift(f)[0]
+            i*=2
         return self.true_factors(f_bar_factors,prime,N)
 
     def norm(self):
@@ -297,9 +305,8 @@ class IntegerPolynomial(PolynomialOverIntegral):
         L_low = self.factory.monomial(0,str(self.leading_coefficient()))
         Result = []
         d = 1
-        l = len(factors)
-        I = set(range(l))
-        len_i = len(I)
+        len_i = len(factors)
+        I = set(range(len_i))
         while 2*d <= len_i:
             J = set(itertools.combinations(I, d))
             while J and 2*d <= len_i:
@@ -307,13 +314,13 @@ class IntegerPolynomial(PolynomialOverIntegral):
                 g_bar = L
                 for g in [factors[i] for i in S]:
                     g_bar = g_bar*g
-                g = self.factory({k: self.factory.inner_factory((long(str(v)) if v <= (p**N)/2 else long(str(v))-(p**N)/2)) for k,v in g_bar.coefficients.iteritems()})
-                if (g % (L_low*h)).is_zero():
+                g = self.factory({k: self.factory.inner_factory(str(v)) for k,v in g_bar.coefficients.iteritems()})
+                if ((L_low*h) % g).is_zero():
                     gpp = g.pp()
                     Result.append(gpp)
                     h = h/gpp
                     I = I.difference(S)
-                    J = J.difference([T for T in itertools.powerset(I) if set(T).intersect(S)])
+                    J = J.difference([T for T in powerset(I) if set(T).intersection(S)])
                 d += 1
         if h.degree() > 0:
             Result.append(h)
@@ -322,6 +329,9 @@ def lift(*poly):
     new_GF = algebra_computacional.factories.GaloisPolynomialFactory(poly[0].factory.q**2)
     return tuple([new_GF(str(p)) for p in poly])
 
+def powerset(iterable):
+    s = list(iterable)
+    return itertools.chain.from_iterable(itertools.combinations(s, r) for r in range(len(s)+1))
 
 
 
@@ -332,13 +342,20 @@ class PolynomialOverField(PolynomialOverIntegral, EuclideanDomain):
     def __divmod__(self, rop):
         if rop.is_zero():
             raise ZeroDivisionError
+        l1 = self.leading_coefficient()
+        l2 = rop.leading_coefficient()
+        if not (l1.is_one() and l2.is_one()):
+            l1 = l1/l2
+        l = self.factory.monomial(0,l1)
         q = self.factory.zero()
-        r = self
+        r = self.monic()
+        rop = rop.monic()
+
         while not r.is_zero() and r.degree() >= rop.degree():
             t = self.factory.monomial(r.degree() - rop.degree(), r.leading_coefficient() / rop.leading_coefficient())
             q = q+t
             r = r - (t*rop)
-        return q, r
+        return q*l, r*l
     def __div__(self, rop):
         return divmod(self, rop)[0]
     def __mod__(self, rop):
@@ -346,8 +363,16 @@ class PolynomialOverField(PolynomialOverIntegral, EuclideanDomain):
     def monic(self):
         ld = self.leading_coefficient()
         return self.factory({ k: v/ld for k,v in self.coefficients.iteritems() })
+        
     def gcd(self, b):
         return self.eea(b)[0].monic()
+    def eea(self, b):
+        g, s, t = EuclideanDomain.eea(self, b)
+        if g.degree() == 0:
+            s = s/g
+            t = t/g
+            g = self.factory.one();
+        return g, s, t
 
 
 def list_power(l, exponent, one):
@@ -361,14 +386,22 @@ class PolynomialOverGalois(PolynomialOverField, Field):
     def __divmod__(self, rop):
         if rop.is_zero():
             raise ZeroDivisionError
+        l1 = self.leading_coefficient()
+        l2 = rop.leading_coefficient()
+        if not (l1.is_one() and l2.is_one()):
+            l1 = l1/l2
+        l = self.factory.monomial(0,l1)
         q = self.factory.zero()
-        r = self
+        r = self.monic()
+        rop = rop.monic()
         while not r.is_zero() and r.degree() >= rop.degree():
             t = self.factory.monomial(r.degree() - rop.degree(), r.leading_coefficient() * rop.leading_coefficient().inverse())
             q = q+t
             r = r - (t*rop)
-        return q, r
-
+        return q*l, r*l
+    def monic(self):
+        ld = self.leading_coefficient().inverse()
+        return self.factory({ k: v*ld for k,v in self.coefficients.iteritems() })
     def pth_root(self):
         return self.factory({ k/self.factory.p: v for k,v in self.coefficients.iteritems()})
     
@@ -435,6 +468,8 @@ class PolynomialOverGalois(PolynomialOverField, Field):
                 result.append(w)
                 result.append(g/w)
                 counter+=1
+            else:
+                result.append(g)
         return result
 
     def squarefree(self):
@@ -444,7 +479,7 @@ class PolynomialOverGalois(PolynomialOverField, Field):
         L = []
         g = [self.gcd(derivative)]
         w = [self / g[0]]
-        while not (w[-1].is_one() or w[-1].degree() == 0) :
+        while not (w[-1].is_one()):
             w.append(g[-1].gcd(w[-1]))
             g.append(g[-1]/w[-1])
             L.append(w[-2]/w[-1])
@@ -495,6 +530,8 @@ class PolynomialOverGalois(PolynomialOverField, Field):
                     len_h_prime+=2
             H = H_prime
             len_h = len_h_prime
+            H_prime = []
+            len_h_prime = 0
         return H
     def hensel(self, g, h, s, t):
         delta = self - g*h
