@@ -500,9 +500,9 @@ class PolynomialOverGalois(PolynomialOverField, Field):
         image = []
         for i in range(base_size):
             canonic = self.factory.monomial(i)
-            aux = (((canonic^(self.factory.q)) - canonic)%self).flip(base_size-1) * self.factory.monomial(base_size)
-            image.append(aux + self.factory.monomial(base_size - 1 - i))
-        return gaussian_elimination_polynomials(image,base_size-1)
+            aux = (((canonic^(self.factory.q)) - canonic)%self).flip(base_size-1)
+            image.append(aux*self.factory.monomial(base_size) + self.factory.monomial(base_size - 1 - i))
+        return gaussian_elimination_polynomials(image,(2*base_size-1))
     def factors1(self,tuplify=False):
         SQUAREFREE = self.squarefree()
         factors = []
@@ -674,7 +674,7 @@ class PolynomialOverGalois(PolynomialOverField, Field):
                 if not (g.is_one() or g == self):
                     return g
             i = i + 1
-            elements.restart()
+            elements.reset()
         return self
 
 def gaussian_elimination_polynomials(image, max_degree):

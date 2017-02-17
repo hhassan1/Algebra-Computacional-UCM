@@ -325,10 +325,11 @@ class FractionalQuotientFactory(QuotientFactory):
                 M[j,k] = T[k]
             j+=1
         facs = determinant(M,s,s*s).factors()
-        result = facs[0].factory.one()
+        QabX = PolynomialFactory(self)
         for x in facs:
-            result *= x
-        return result
+            result = QabX(str(x))
+            if result(str(element)).is_zero():
+                return x
 
 
     def basis(self):
