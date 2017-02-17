@@ -49,3 +49,8 @@ def eea(a,b):
     return g, u, v
 def gcd(a, b):
     return eea(a, b)[0]
+def lcm(l):
+    mul = foldl((lambda x,y: x*y), 1, l)
+    g = foldl(gcd, 0, l)
+    return mul/g
+

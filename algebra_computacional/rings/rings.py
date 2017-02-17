@@ -1,13 +1,13 @@
 __all__ = ['Integer', 'PolynomialOverIntegral', 'PolynomialOverField',
            'PolynomialOverGalois', 'QuotientElement', 'ModularInteger',
-           'GaussianInteger', 'IntegerPolynomial','Fractional']
+           'GaussianInteger', 'IntegerPolynomial','Fractional','PolynomialOverExtensionFractional','FractionalPolynomial']
 
 from algebra_computacional.structures import (EuclideanDomain,
                                               Field,
                                               GaloisField,
                                               Integral
                                              )
-from algebra_computacional.utilities.haskell import zipWithAll, concat, eea, foldl
+from algebra_computacional.utilities.haskell import zipWithAll, concat, eea, foldl, gcd as normal_gcd, lcm as normal_lcm
 import algebra_computacional.factories
 import math
 import fractions
@@ -115,8 +115,12 @@ class Fractional(Field):
     def __div__(self, op2):
         return self.factory((self.a*op2.b,self.b*op2.a))
     def __str__(self):
+        if self.b == 1:
+            return str(self.a)
         return str(self.a) + '/' + str(self.b)
     def __repr__(self):
+        if self.b == 1:
+            return str(self.a)
         return str(self.a) + '/' + str(self.b)
 
 
@@ -442,6 +446,20 @@ class FractionalPolynomial(PolynomialOverField):
     def __init__(self, coefficients, builder):
         super(PolynomialOverField, self).__init__(coefficients, builder)
 
+    def factors(self):
+        zx_f = self.toZX()
+        low_facs = zx_f.factors(tuplify=True)
+        return [self.factory(str(x)) for x,i in low_facs]
+
+    def toZX(self):
+        ZX = algebra_computacional.factories.IntegerPolynomialFactory()
+        if(self.is_zero()):
+            return ZX.zero()
+        denominators = [v.b for v in self.coefficients.itervalues()]
+        lcm = normal_lcm(denominators)
+        return ZX(str(self*self.factory(str(lcm))))
+
+
 
 def list_power(l, exponent, one):
     return concat([[one() for _ in range(1,exponent)] + [x] for x in l])
@@ -450,6 +468,8 @@ class PolynomialOverGalois(PolynomialOverField, Field):
     def __init__(self, coefficients, builder):
         if isinstance(builder,algebra_computacional.factories.GaloisPolynomialFactory) and builder.lifted:
             coefficients = {k:v for k,v in coefficients.iteritems() if int(str(v)) == 0 or int(str(v)) == 1 or int(str(v)) == -1 or builder.p % int(str(v)) != 0}
+            if not coefficients:
+                coefficients = {0L:builder.inner_factory.zero()}
         super(PolynomialOverGalois, self).__init__(coefficients, builder)
     def inverse(self):
         return self.factory.one() / self
@@ -606,7 +626,7 @@ class PolynomialOverGalois(PolynomialOverField, Field):
     def equaldegree(self, k):
         def m_k(alpha, k):
             w = self.factory.k
-            ret = self.factory.one()
+            ret = alpha
             next_alpha =  alpha
             for i in range(1,w*k):
                 next_alpha = next_alpha*next_alpha
@@ -717,3 +737,11 @@ def gen_primes():
             del D[q]
         
         q += 1
+
+class PolynomialOverExtensionFractional(PolynomialOverField, Field):
+    def __init__(self, coefficients, builder):
+        if isinstance(builder,algebra_computacional.factories.GaloisPolynomialFactory) and builder.lifted:
+            coefficients = {k:v for k,v in coefficients.iteritems() if int(str(v)) == 0 or int(str(v)) == 1 or int(str(v)) == -1 or builder.p % int(str(v)) != 0}
+        super(PolynomialOverExtensionFractional, self).__init__(coefficients, builder)
+    def inverse(self):
+        return self.factory.one() / self

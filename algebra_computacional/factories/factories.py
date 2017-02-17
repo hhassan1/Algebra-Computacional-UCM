@@ -5,7 +5,9 @@ from algebra_computacional.rings import (Integer,
                                          QuotientElement,
                                          ModularInteger,
                                          GaussianInteger,
-                                         Fractional
+                                         Fractional,
+                                         FractionalPolynomial,
+                                         PolynomialOverExtensionFractional
                                         )
 import algebra_computacional.rings
 from algebra_computacional.structures import (GaloisField,
@@ -106,6 +108,8 @@ class PolynomialFactory(object):
                 return self.zero()
             polynomial.coefficients = coefficients
             return polynomial
+        elif isinstance(expression, self.inner_factory.product):
+            return self.product({0L:expression}, self)
         elif isinstance(expression, dict):
             coefficients = OrderedDict(sorted({k: v for k, v in expression.iteritems() if not v.is_zero() or k == 0}.items(), reverse=True))
             if 0L in coefficients and coefficients[0L].is_zero() and len(coefficients) > 1:
@@ -276,5 +280,92 @@ class GaloisIterator(object):
 class FractionalPolynomialFactory(PolynomialFactory):
     def __init__(self, variable='x'):
         super(FractionalPolynomialFactory, self).__init__(FractionalFactory(),variable)
+        self.product = FractionalPolynomial
         #self.monic = False
 
+class FractionalQuotientFactory(QuotientFactory):
+    def __init__(self, expression, factory=None):
+        import re
+        variable = re.search('([a-zA-Z])', expression).group(1)
+        if not variable:
+            variable = 'x'
+        self.variable = variable
+
+        if not factory:
+            super(FractionalQuotientFactory, self).__init__(FractionalPolynomialFactory(variable), expression)
+            self.delegate = None
+            self.degree = self.quotient_factor.degree()
+            self.dimension_chart = (self.degree,)
+        else:
+            super(FractionalQuotientFactory, self).__init__(PolynomialFactory(factory,variable), expression)
+            self.delegate = factory
+            self.degree = self.quotient_factor.degree()*factory.degree
+            self.dimension_chart = (self.quotient_factor.degree(),) + factory.dimension_chart
+    def separate_basis(self, poly):
+        QX = FractionalPolynomialFactory()
+        table = dict()
+        for k in range(self.dimension_chart[0]):
+            if not self.delegate:
+                table[k] = QX(poly.value.coefficient(k))
+            else:
+                for j,u in self.delegate.separate_basis(poly.value.coefficient(k)).iteritems():
+                    table[self.delegate.degree*k + j] = u
+        return table
+    def minimal_polynomial(self, element):
+        QX = FractionalPolynomialFactory()
+        basis = self.basis()
+        L = [element*y for y in basis]
+        j = 0
+        s = len(L)
+        M = dict()
+        for i in L:
+            T = self.separate_basis(i)
+            T[j] = QX('-x')
+            for k in range(s):
+                M[j,k] = T[k]
+            j+=1
+        facs = determinant(M,s,s*s).factors()
+        result = facs[0].factory.one()
+        for x in facs:
+            result *= x
+        return result
+
+
+    def basis(self):
+        if isinstance(self.inner_factory,FractionalPolynomialFactory):
+            for i in range(0,self.quotient_factor.degree()):
+                yield self(self.variable+'^'+str(i))
+        else:
+            for i in range(0,self.quotient_factor.degree()):
+                for j in self.inner_factory.inner_factory.basis():
+                    yield self('(' + self.variable+'^'+str(i) + ')*('+ str(j) +')')
+
+def determinant(m,n,s):
+    if s == 1:
+        return m[0,0]
+    result = m[0,0].factory.zero()
+    for i in range(n):
+        minor = {(j-1,(k if k < i else k-1)):v for (j,k),v in m.iteritems() if k != i}
+        if i % 2 == 0:
+            result += m[0,i]*determinant(minor,n-1,s-2*n+1)
+        else:
+            result -= m[0,i]*determinant(minor,n-1,s-2*n+1)
+    return result
+    
+
+
+
+class ExtensionFractionalPolynomialFactory(PolynomialFactory):
+    def __init__(self, expression=None, variable='x',factory=None):
+        if factory:
+            super(ExtensionFractionalPolynomialFactory, self).__init__(factory,variable)
+        else:
+            if expression:
+                factory = FractionalQuotientFactory(expression)
+                self.quotient_factor = factory.quotient_factor
+            else:
+                factory = FractionalPolynomialFactory(variable)
+            super(ExtensionFractionalPolynomialFactory, self).__init__(factory,variable)
+            self.product = PolynomialOverExtensionFractional
+    def quotient(self, q, var):
+        return FractionalQuotientFactory(str(q),var,self)
