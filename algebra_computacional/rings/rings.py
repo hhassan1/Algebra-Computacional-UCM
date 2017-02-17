@@ -676,6 +676,15 @@ class PolynomialOverGalois(PolynomialOverField, Field):
             i = i + 1
             elements.reset()
         return self
+    def irreducible(self):
+        x = self.factory.monomial(1)
+        h = x
+        l = self.degree()
+        for k in range((l/2)+1):
+            h = (h^self.factory.q) % self
+            if not self.gcd(h-x).is_one():
+                return False
+        return True
 
 def gaussian_elimination_polynomials(image, max_degree):
     s = len(image)
